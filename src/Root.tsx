@@ -107,7 +107,7 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
         if (active) setThinking(false)
       })
     return () => { active = false }
-  }, [drawing])
+  }, [drawing, aiProvider])
 
   const reply = async () => {
     const childMessage = input.trim()
