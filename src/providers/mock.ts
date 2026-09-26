@@ -124,7 +124,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
 
   const conversationalIntent = intent === 'SOCIAL' || intent === 'META_FEEDBACK'
   const readyToVisualize = !conversationalIntent && (context.turnCount >= 3 || memory.confirmedFacts.length >= 4)
-  if (readyToVisualize && !question) {
+  if (readyToVisualize && intent !== 'ANSWER' && !question) {
     question = '지금까지 말해준 모습을 그림으로 같이 펼쳐볼까?'
     focus = 'consent'
   }

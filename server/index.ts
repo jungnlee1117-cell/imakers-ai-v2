@@ -83,6 +83,10 @@ function questionSimilarity(left: string, right: string) {
   return intersection / Math.max(a.size, b.size)
 }
 
+function hasMechanicalUnderstanding(parts: string[]) {
+  return /(?:라는|이라고)\s*뜻으로 이해했어/.test(parts.join(' '))
+}
+
 app.get('/api/providers', (_request, response) => {
   response.json({
     openai: { configured: Boolean(process.env.OPENAI_API_KEY) },
@@ -128,12 +132,27 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     const similarQuestion = body.context.previousQuestions.find(
       (question) => result.data.question && questionSimilarity(question, result.data.question) >= .55,
     )
-    if (similarQuestion) {
+    const mechanicalResponse = hasMechanicalUnderstanding([
+      result.data.reaction,
+      result.data.connection,
+      result.data.suggestion,
+      result.data.question,
+    ])
+    if (similarQuestion || mechanicalResponse) {
+      const instructions = [
+        similarQuestion
+          ? `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하므로 생략하거나 실제 문맥에 필요한 전혀 다른 방향으로 바꿔라.`
+          : '',
+        mechanicalResponse
+          ? '"~라는 뜻으로 이해했어", "~이라고 이해했어" 같은 내부 해석 문구를 제거하고 직전 대화에 자연스럽게 반응하라.'
+          : '',
+      ].filter(Boolean).join(' ')
       result = await provider.respondToChild({
         ...body.context,
-        retryInstruction: `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하다. 질문을 생략하거나 감정·관계·이유·변화 중 실제 문맥에 맞는 전혀 다른 방향으로 다시 응답하라.`,
+        retryInstruction: instructions,
       })
     }
+    const responseQuestion = intent === 'ANSWER' ? '' : result.data.question
     const updates = result.data.memory_updates
     const previous = body.context.memory
     const memory = {
@@ -142,14 +161,14 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       rejectedIdeas: unique([...previous.rejectedIdeas, ...updates.rejected_ideas]),
       childPreferences: unique([...previous.childPreferences, ...updates.preferences]),
       mood: updates.mood || previous.mood,
-      askedQuestions: unique([...previous.askedQuestions, result.data.question]),
+      askedQuestions: unique([...previous.askedQuestions, responseQuestion]),
       behaviors: unique([...previous.behaviors, ...updates.behaviors]),
       movementIdeas: unique([...previous.movementIdeas, ...updates.movement_ideas]),
       worldRules: unique([...previous.worldRules, ...updates.world_rules]),
       understoodInputs: [...previous.understoodInputs, {
         ...body.context.inputUnderstanding,
       }],
-      questionFocuses: result.data.question_focus
+      questionFocuses: responseQuestion && result.data.question_focus
         ? unique([...previous.questionFocuses, result.data.question_focus])
         : previous.questionFocuses,
       sceneDescription: updates.scene_description || previous.sceneDescription,
@@ -160,7 +179,7 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       reaction: result.data.reaction,
       connection: result.data.connection,
       suggestion: result.data.suggestion,
-      question: result.data.question,
+      question: responseQuestion,
       memory_updates: result.data.memory_updates,
       memory,
       ready_to_visualize: result.data.ready_to_visualize,
