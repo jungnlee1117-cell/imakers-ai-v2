@@ -25,50 +25,37 @@ function StartScreen({ onDraw, onUpload }: { onDraw: () => void; onUpload: (imag
 
   return (
     <main className="start-page">
-      <nav className="top-nav">
-        <Logo />
-        <span className="version-chip">창작 스튜디오 · V2.1</span>
-      </nav>
-      <section className="start-content">
-        <div className="start-copy">
-          <span className="eyebrow"><Sparkles size={15} /> 오늘의 상상은 어디서 시작할까?</span>
-          <h1>네 생각을<br /><i>그려볼래?</i></h1>
-          <p>잘 그리지 않아도 괜찮아.<br />네가 들려주는 이야기가 가장 중요해.</p>
+      <section className="start-card">
+        <img className="start-hero-image" src="/imakers-start-hero.png" alt="그림을 보며 상상하는 아이와 AI 로봇 친구" />
+        <div className="start-sky-wash" />
+        <header className="start-brand">
+          <span className="brand-star">★</span>
+          <div className="rainbow-logo" aria-label="아이메이커스 AI">
+            <strong><i>아</i><i>이</i><i>메</i><i>이</i><i>커</i><i>스</i></strong>
+            <small>AI Makers</small>
+          </div>
+        </header>
+        <div className="start-message">
+          <h1>너의 상상이 더 멋지게 펼쳐지는 곳</h1>
+          <p>그리고, 이야기하고, 함께 만들어봐요!</p>
+        </div>
+        <div className="start-bottom">
           <div className="start-actions">
-            <button className="primary-button large" onClick={onDraw}>
-              <Paintbrush size={21} /> 그림 그리기 <ArrowRight size={20} />
+            <button className="start-primary" onClick={onDraw}>
+              <Paintbrush size={21} /> 그림 그리기 시작하기 <ArrowRight size={20} />
             </button>
-            <button className="secondary-button large" onClick={() => inputRef.current?.click()}>
-              <ImagePlus size={21} /> 그림 올리기
+            <button className="start-upload" onClick={() => inputRef.current?.click()}>
+              <ImagePlus size={20} /> 그림 올려서 시작하기
             </button>
             <input ref={inputRef} className="sr-only" type="file" accept="image/*" onChange={upload} />
           </div>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="paper paper-back" />
-          <div className="paper paper-main">
-            <svg viewBox="0 0 520 410" role="presentation">
-              <path className="sun" d="M368 100c31-28 76-21 88 13 11 31-11 68-48 70-39 2-67-49-40-83Z" />
-              <path className="hill-one" d="M4 324c83-88 138-86 209-19 55-55 112-40 155 7 62-35 105-18 148 20v74H4Z" />
-              <path className="hill-two" d="M3 362c68-37 139-28 199 16 65-59 141-56 201-8 46-17 81-12 114 10v28H3Z" />
-              <path className="creature" d="M120 280c-26-64 22-126 92-122 20-47 104-51 130 6 50 1 83 28 83 67 0 40-31 65-75 66l-204 1Z" />
-              <circle cx="262" cy="183" r="9" className="eye" />
-              <path className="smile" d="M278 205c13 13 31 13 43 0" />
-              <circle cx="180" cy="300" r="41" className="wheel" />
-              <circle cx="362" cy="300" r="41" className="wheel" />
-              <circle cx="180" cy="300" r="16" className="hub" />
-              <circle cx="362" cy="300" r="16" className="hub" />
-              <path className="motion" d="M65 218h55M45 244h67M397 139l29-21M420 165l36-5" />
-            </svg>
-            <span className="paper-note">상상에는 정답이 없어!</span>
+          <div className="start-benefits">
+            <div><span>🎨</span><strong>그려보고</strong><small>네 생각을 자유롭게</small></div>
+            <div><span>💬</span><strong>이야기하고</strong><small>AI 친구와 함께</small></div>
+            <div><span>✨</span><strong>더 멋지게 만들어요</strong><small>상상이 현실이 되는 곳</small></div>
           </div>
-          <div className="pencil" />
-          <span className="spark s1">✦</span><span className="spark s2">✦</span>
         </div>
       </section>
-      <footer className="start-footer">
-        <span>© iMakers Studio</span><span>아이의 생각에서 시작하는 AI 창작</span>
-      </footer>
     </main>
   )
 }
