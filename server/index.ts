@@ -80,6 +80,9 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       childPreferences: unique([...previous.childPreferences, ...updates.preferences]),
       mood: updates.mood || previous.mood,
       askedQuestions: unique([...previous.askedQuestions, result.data.question]),
+      behaviors: unique([...previous.behaviors, ...updates.behaviors]),
+      movementIdeas: unique([...previous.movementIdeas, ...updates.movement_ideas]),
+      worldRules: unique([...previous.worldRules, ...updates.world_rules]),
     }
     response.json({
       reaction: result.data.reaction,

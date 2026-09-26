@@ -17,6 +17,9 @@ const emptyMemory = {
   childPreferences: [],
   mood: '밝고 따뜻한 분위기',
   askedQuestions: ['이 친구는 누구야?'],
+  behaviors: [],
+  movementIdeas: [],
+  worldRules: [],
 }
 
 export interface ProviderScenario {

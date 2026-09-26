@@ -45,6 +45,9 @@ ${JSON.stringify(memory, null, 2)}
 - suggestion: 선택권을 남기는 AI 아이디어. 필요 없으면 빈 문자열
 - question: 정확히 하나의 새 질문. 시각화 동의를 물을 때도 하나만
 - memory_updates: 이번 아이 말로 새롭게 확정/거절/선호된 내용만 기록
+- behaviors: 대상의 성격이나 반복 행동
+- movement_ideas: 달리기, 점프, 날기처럼 아이가 말한 움직임
+- world_rules: 특정 조건에서 일어나는 세계의 규칙
 - ready_to_visualize: 아이 설정이 충분하고 시각화 동의를 물어도 되는 시점인지`
 }
 
@@ -68,6 +71,9 @@ export function imagePrompt(memory: CreativeMemory, editRequest?: string) {
 확정 설정: ${memory.confirmedFacts.join(', ') || '원본 그림을 우선 유지'}
 선호: ${memory.childPreferences.join(', ') || '없음'}
 분위기: ${memory.mood}
+행동 특징: ${memory.behaviors.join(', ') || '없음'}
+움직임 아이디어: ${memory.movementIdeas.join(', ') || '없음'}
+세계 규칙: ${memory.worldRules.join(', ') || '없음'}
 절대 넣지 않을 것: ${rejected}
 ${editRequest ? `이번에 바꿀 부분: ${editRequest}\n그 외 캐릭터, 구도, 확정 설정, 만족한 요소는 최대한 그대로 유지한다.` : ''}
 아이의 선과 형태를 알아볼 수 있게 존중하면서 질감, 공간감, 빛을 자연스럽게 확장한다. 글자나 워터마크는 넣지 않는다.`

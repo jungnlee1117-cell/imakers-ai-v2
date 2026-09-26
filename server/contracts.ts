@@ -9,6 +9,9 @@ export const creativeMemorySchema = z.object({
   childPreferences: z.array(z.string()).default([]),
   mood: z.string().default('밝고 따뜻한 분위기'),
   askedQuestions: z.array(z.string()).default([]),
+  behaviors: z.array(z.string()).default([]),
+  movementIdeas: z.array(z.string()).default([]),
+  worldRules: z.array(z.string()).default([]),
 })
 
 export const drawingAnalysisSchema = z.object({
@@ -30,6 +33,9 @@ export const coachResponseSchema = z.object({
     confirmed_facts: z.array(z.string()),
     rejected_ideas: z.array(z.string()),
     preferences: z.array(z.string()),
+    behaviors: z.array(z.string()),
+    movement_ideas: z.array(z.string()),
+    world_rules: z.array(z.string()),
     mood: z.string().optional().default(''),
   }),
   ready_to_visualize: z.boolean(),

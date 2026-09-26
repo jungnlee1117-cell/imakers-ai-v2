@@ -32,6 +32,15 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
   }
   if (/밤|어둡/.test(text)) next.mood = '신비로운 밤 분위기'
   if (/밝|낮|햇빛/.test(text)) next.mood = '밝고 따뜻한 분위기'
+  if (/달리|뛰|점프|날|움직|흔들|돌아|회전/.test(text)) {
+    next.movementIdeas = unique([...memory.movementIdeas, text.replace(/[.!?]/g, '')])
+  }
+  if (/무서워|좋아해|보면|때마다/.test(text)) {
+    next.behaviors = unique([...memory.behaviors, text.replace(/[.!?]/g, '')])
+  }
+  if (/되면|가까이|생기|바뀌|에서는/.test(text)) {
+    next.worldRules = unique([...memory.worldRules, text.replace(/[.!?]/g, '')])
+  }
   return next
 }
 

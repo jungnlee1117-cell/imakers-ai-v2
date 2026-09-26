@@ -20,6 +20,8 @@ npm run dev -- --host 0.0.0.0
 - 사용자 동의 후 시각화
 - 원본/확장 이미지 나란히 비교
 - 자연어 수정과 V1/V2/V3 버전 탐색
+- 6가지 질감의 Pointer Event 기반 미술 도구
+- 객체 선택, 7가지 preset, 자연어 수정이 가능한 Motion Studio
 - AI/Image Provider 어댑터
 
 기본값은 브라우저에서 바로 체험 가능한 mock provider입니다.
@@ -63,8 +65,15 @@ npm run test:providers
 - `childPreferences`: 크기, 분위기 등 선호
 - `mood`: 이미지 생성에 사용할 분위기
 - `askedQuestions`: 반복을 피해야 하는 이전 질문
+- `behaviors`: 대상의 성격과 반복 행동
+- `movementIdeas`: 아이가 말한 움직임
+- `worldRules`: 조건에 따라 일어나는 세계의 규칙
 
 실제 서비스에서는 이 객체 전체를 대화 및 이미지 생성 요청에 포함하도록 설계되어 있습니다.
+
+## Motion 구조
+
+`src/motion/types.ts`의 `AnimatedObject`와 `MotionSpec`이 객체와 움직임을 분리합니다. 현재 객체 영역은 mock이며, `src/motion/mockInterpreter.ts`가 “더 빨리”, “왼쪽으로”, “더 높이 뛰어” 같은 표현을 속도·방향·크기로 변환합니다. 이후 실제 객체 분리 및 AI interpreter로 교체할 수 있습니다.
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
