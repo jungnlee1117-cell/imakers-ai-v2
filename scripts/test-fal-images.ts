@@ -21,7 +21,7 @@ const transparentPixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB
 
 const baseMemory: CreativeMemory = {
   mainSubject: '분홍색 돼지',
-  confirmedFacts: ['돼지가 숲길에 있다', '돼지가 빨간 가방을 메고 있다', '돼지가 포장된 선물을 들고 있다'],
+  confirmedFacts: ['돼지가 숲길에 있다', '돼지가 빨간 가방을 메고 있다', '돼지가 친구에게 줄 포장된 선물을 들고 있다'],
   rejectedIdeas: [],
   childPreferences: ['주인공과 소품이 명확하게 보이는 동화책 그림'],
   mood: '밝은 낮, 따뜻하고 즐거운 분위기',
@@ -32,8 +32,8 @@ const baseMemory: CreativeMemory = {
   understoodInputs: [],
   questionFocuses: [],
   sceneDescription: '나무와 풀이 풍성한 숲길',
-  characterDescription: '둥글고 친근한 분홍색 돼지, 빨간 가방, 포장된 선물',
-  childRequestedAdditions: ['숲', '빨간 가방', '선물'],
+  characterDescription: '둥글고 친근한 분홍색 돼지, 빨간 가방, 친구에게 줄 포장된 선물',
+  childRequestedAdditions: ['숲', '빨간 가방', '친구에게 줄 선물'],
 }
 
 async function post(path: string, body: Record<string, unknown>) {
