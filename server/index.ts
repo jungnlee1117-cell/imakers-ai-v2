@@ -51,11 +51,21 @@ const memoryRequestSchema = providerRequestSchema.extend({
   memory: creativeMemorySchema,
 })
 
-const imageRequestSchema = providerRequestSchema.extend({
-  drawingDataUrl: z.string().startsWith('data:image/'),
+const imageMemoryRequestSchema = providerRequestSchema.extend({
   memory: creativeMemorySchema,
-  request: z.string().max(1000).optional(),
-  previousImageId: z.string().optional(),
+})
+
+const generateImageRequestSchema = imageMemoryRequestSchema.extend({
+  drawingDataUrl: z.string().startsWith('data:image/'),
+})
+
+const editImageRequestSchema = imageMemoryRequestSchema.extend({
+  drawingDataUrl: z.string().refine(
+    (value) => value.startsWith('data:image/') || /^https:\/\//.test(value),
+    '편집할 이미지는 data URL 또는 HTTPS URL이어야 합니다.',
+  ),
+  request: z.string().min(1).max(1000),
+  previousImageId: z.string().min(1),
 })
 
 function unique(values: string[]) {
@@ -159,7 +169,7 @@ app.post('/api/summarize-memory', async (request, response, next) => {
 
 app.post('/api/generate-image', async (request, response, next) => {
   try {
-    const body = imageRequestSchema.parse(request.body)
+    const body = generateImageRequestSchema.parse(request.body)
     const { keep, change, generationPrompt } = buildImagePlan(body.memory)
     const result = await getCloudProvider(body.provider).generateImage({ ...body, generationPrompt, keep, change })
     response.json({
@@ -178,7 +188,7 @@ app.post('/api/generate-image', async (request, response, next) => {
 
 app.post('/api/edit-image', async (request, response, next) => {
   try {
-    const body = imageRequestSchema.parse(request.body)
+    const body = editImageRequestSchema.parse(request.body)
     const { keep, change, generationPrompt } = buildImagePlan(body.memory, body.request)
     const result = await getCloudProvider(body.provider).editImage({ ...body, generationPrompt, keep, change })
     response.json({
