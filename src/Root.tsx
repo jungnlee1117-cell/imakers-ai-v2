@@ -106,10 +106,6 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
 
   useEffect(() => {
     let active = true
-    setAnalysis(null)
-    setTurns([])
-    setProviderError('')
-    setThinking(true)
     aiProvider.analyzeDrawing(drawing)
       .then((result) => {
         if (!active) return
@@ -463,7 +459,7 @@ export default function Root() {
 
   if (step === 'draw') return <DrawingStudio onComplete={useDrawing} onBack={() => setStep('start')} />
   if (step === 'conversation' && drawing) {
-    return <Conversation drawing={drawing} aiProvider={clients.aiProvider} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
+    return <Conversation key={drawing} drawing={drawing} aiProvider={clients.aiProvider} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
   }
   if (step === 'visualize' && drawing) {
     return <Visualize drawing={drawing} memory={memory} imageProvider={clients.imageProvider} onBack={() => setStep('conversation')} />
