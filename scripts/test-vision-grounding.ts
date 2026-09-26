@@ -7,9 +7,10 @@ const drawings = [
     id: 'pig',
     svg: `<g fill="none" stroke="#d94764" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
       <ellipse cx="320" cy="245" rx="150" ry="115"/><circle cx="245" cy="175" r="92"/>
-      <ellipse cx="205" cy="195" rx="58" ry="40"/><circle cx="187" cy="193" r="5" fill="#d94764"/><circle cx="220" cy="193" r="5" fill="#d94764"/>
+      <circle cx="205" cy="140" r="6" fill="#d94764"/><circle cx="275" cy="140" r="6" fill="#d94764"/>
+      <ellipse cx="240" cy="200" rx="78" ry="54"/><circle cx="210" cy="200" r="9" fill="#d94764"/><circle cx="270" cy="200" r="9" fill="#d94764"/>
       <path d="M185 112l-24-48 55 25M282 105l35-43 10 60M185 245q-55 45-15 100M245 348v65M350 348v65M408 235q70-45 65 20q-4 35-35 8q-22-20 5-38"/>
-      <circle cx="228" cy="153" r="5" fill="#d94764"/><path d="M230 225q28 22 55-3"/>
+      <path d="M215 248q28 22 58-2"/>
     </g>`,
   },
   {
@@ -50,12 +51,15 @@ const drawings = [
   },
 ]
 
+const selectedIds = new Set((process.env.TEST_VISION_IDS || drawings.map((item) => item.id).join(',')).split(','))
+const selectedDrawings = drawings.filter((drawing) => selectedIds.has(drawing.id))
+
 const browser = await chromium.launch({ executablePath: '/usr/local/bin/google-chrome', headless: true })
 const page = await browser.newPage({ viewport: { width: 640, height: 480 } })
 const results = []
 
 try {
-  for (const drawing of drawings) {
+  for (const drawing of selectedDrawings) {
     await page.setContent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#fffdf7"/>${drawing.svg}</svg>`)
     const png = await page.screenshot({ type: 'png' })
     const imageDataUrl = `data:image/png;base64,${png.toString('base64')}`

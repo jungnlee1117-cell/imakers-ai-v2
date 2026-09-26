@@ -37,6 +37,14 @@ VITE_AI_API_BASE=/api
 
 시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI/FAL · FLUX Kontext)를 각각 선택할 수 있습니다. FAL은 `fal-ai/flux-pro/kontext/text-to-image`로 첫 이미지를 만들고 `fal-ai/flux-pro/kontext`로 후속 이미지를 편집합니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
 
+그림 분석 경로는 Coach provider에 따라 명확히 구분됩니다.
+
+- `Mock`: 실제 vision 호출 없이 hardcoded 관찰을 반환하는 체험용 경로
+- `OpenAI`: 실제 image input을 OpenAI vision-capable model에 전달
+- `Claude`: 실제 base64 image input을 Claude vision model에 전달
+
+실서비스에서는 `VITE_AI_PROVIDER=openai` 또는 `anthropic`을 설정해야 실제 Vision 분석을 사용합니다. 분석 결과는 subjects/features/expressions/objects/scene/uncertainties 구조로 대화에 항상 전달됩니다. 새 그림 data URL은 다른 hash와 React key를 만들어 이전 Visual Context를 재사용하지 않습니다. 개발 모드의 대화 패널에서 image hash, vision provider, subject confidence, visual features, response source를 확인할 수 있습니다.
+
 - `POST /api/analyze-drawing`
 - `POST /api/respond-to-child`
 - `POST /api/summarize-memory`
