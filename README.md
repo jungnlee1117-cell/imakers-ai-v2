@@ -21,7 +21,7 @@ npm run dev -- --host 0.0.0.0
 - 원본/확장 이미지 나란히 비교
 - 자연어 수정과 V1/V2/V3 버전 탐색
 - 6가지 질감의 Pointer Event 기반 미술 도구
-- 객체 선택, 7가지 preset, 자연어 수정이 가능한 Motion Studio
+- 실제 객체 분리를 연결하기 전에는 준비 상태로 표시되는 Motion Studio
 - AI/Image Provider 어댑터
 
 기본값은 브라우저에서 바로 체험 가능한 mock provider입니다.
@@ -35,7 +35,15 @@ VITE_AI_PROVIDER=openai
 VITE_AI_API_BASE=/api
 ```
 
-시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI)를 각각 선택할 수 있습니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
+시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI/FAL · FLUX Kontext)를 각각 선택할 수 있습니다. FAL은 `fal-ai/flux-pro/kontext/text-to-image`로 첫 이미지를 만들고 `fal-ai/flux-pro/kontext`로 후속 이미지를 편집합니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
+
+그림 분석 경로는 Coach provider에 따라 명확히 구분됩니다.
+
+- `Mock`: 실제 vision 호출 없이 hardcoded 관찰을 반환하는 체험용 경로
+- `OpenAI`: 실제 image input을 OpenAI vision-capable model에 전달
+- `Claude`: 실제 base64 image input을 Claude vision model에 전달
+
+실서비스에서는 `VITE_AI_PROVIDER=openai` 또는 `anthropic`을 설정해야 실제 Vision 분석을 사용합니다. 분석 결과는 subjects/features/expressions/objects/scene/uncertainties 구조로 대화에 항상 전달됩니다. 새 그림 data URL은 다른 hash와 React key를 만들어 이전 Visual Context를 재사용하지 않습니다. 개발 모드의 대화 패널에서 image hash, vision provider, subject confidence, visual features, response source를 확인할 수 있습니다.
 
 - `POST /api/analyze-drawing`
 - `POST /api/respond-to-child`
@@ -43,7 +51,7 @@ VITE_AI_API_BASE=/api
 - `POST /api/generate-image`
 - `POST /api/edit-image`
 
-OpenAI/Anthropic API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`처럼 서버 전용 환경 변수로 관리해야 합니다. Provider 계약은 `src/providers/types.ts`, 원격 어댑터는 `src/providers/index.ts`, mock 동작은 `src/providers/mock.ts`에 있습니다.
+OpenAI/Anthropic/FAL API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FAL_KEY`처럼 서버 전용 환경 변수로 관리해야 합니다. Provider 계약은 `src/providers/types.ts`, 원격 어댑터는 `src/providers/index.ts`, mock 동작은 `src/providers/mock.ts`에 있습니다.
 
 Cloud adapter는 `server/providers/openai.ts`와 `server/providers/anthropic.ts`에 있습니다. Claude는 자체 이미지 생성 API가 없으므로 Claude 대화를 선택해도 시각화는 기본적으로 OpenAI image provider를 사용합니다.
 
@@ -71,13 +79,13 @@ npm run test:providers
 
 실제 서비스에서는 이 객체 전체를 대화 및 이미지 생성 요청에 포함하도록 설계되어 있습니다.
 
-아이 입력은 `src/ai/childInputNormalizer.ts`에서 raw/normalized/meaning으로 구분합니다. 확실한 오타만 조용히 정규화하며, 불확실한 고유명사는 AI Coach가 확인합니다.
+아이 입력은 `src/ai/childInputNormalizer.ts`에서 raw/normalized/meaning과 intent로 구분합니다. 확실한 오타만 조용히 정규화하며, 짧은 답은 직전 질문에 연결하고 SOCIAL/META_FEEDBACK은 작품 설정에 저장하지 않습니다.
 
 실제 OpenAI 이미지 요청은 원본 그림과 Creative Memory를 `server/imagePlan.ts`에서 KEEP/CHANGE 계획으로 구성합니다. 개발 모드에서는 Visualize 화면의 Image Generation Debug 패널에서 provider, prompt, image ID와 이전 image ID를 확인할 수 있습니다.
 
 ## Motion 구조
 
-`src/motion/types.ts`의 `AnimatedObject`와 `MotionSpec`이 객체와 움직임을 분리합니다. 현재 객체 영역은 mock이며, `src/motion/mockInterpreter.ts`가 “더 빨리”, “왼쪽으로”, “더 높이 뛰어” 같은 표현을 속도·방향·크기로 변환합니다. 이후 실제 객체 분리 및 AI interpreter로 교체할 수 있습니다.
+`src/motion/types.ts`의 `AnimatedObject`와 `MotionSpec`이 객체와 움직임을 분리합니다. 현재 객체 영역과 interpreter는 개발용 mock뿐이므로 실제 사용자 화면에는 객체명이나 제어 UI를 노출하지 않고 `움직임 기능 준비 중` 상태만 표시합니다. 실제 segmentation이 연결된 뒤 단계형 선택 UI로 교체합니다.
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.

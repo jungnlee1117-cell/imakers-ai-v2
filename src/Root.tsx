@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, ImagePlus,
   LoaderCircle, Mic, Paintbrush, Send, Sparkles,
-  Play,
 } from 'lucide-react'
 import { DrawingStudio } from './components/DrawingStudio'
-import { MotionStudio } from './components/MotionStudio'
-import { childInputNormalizer } from './ai/childInputNormalizer'
+import { MotionEntry } from './components/MotionEntry'
+import { childInputNormalizer, inferQuestionFocus } from './ai/childInputNormalizer'
 import { createProviderClients } from './providers'
 import type { AIProvider, ImageProvider, ImageProviderKind, ProviderKind } from './providers'
 import type { ConversationTurn, CreativeMemory, DrawingAnalysis, ImageVersion, StudioStep } from './types/creative'
@@ -52,9 +51,9 @@ function StartScreen({ onDraw, onUpload, provider, onProviderChange, imageProvid
         </div>
         <div className="image-provider-switch" aria-label="이미지 provider">
           <small>IMAGE</small>
-          {(['mock', 'openai'] as ImageProviderKind[]).map((item) => (
+          {(['mock', 'openai', 'fal'] as ImageProviderKind[]).map((item) => (
             <button key={item} className={imageProviderKind === item ? 'active' : ''} onClick={() => onImageProviderChange(item)}>
-              {item === 'openai' ? 'OpenAI' : 'Mock'}
+              {item === 'openai' ? 'OpenAI' : item === 'fal' ? 'FAL · FLUX Kontext' : 'Mock'}
             </button>
           ))}
         </div>
@@ -103,6 +102,7 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   const [thinking, setThinking] = useState(true)
   const [ready, setReady] = useState(false)
   const [providerError, setProviderError] = useState('')
+  const [responseSource, setResponseSource] = useState('vision-opening')
 
   useEffect(() => {
     let active = true
@@ -125,25 +125,37 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   const reply = async () => {
     const childMessage = input.trim()
     if (!childMessage || !analysis || thinking) return
-    const understanding = childInputNormalizer.normalize(childMessage, memory)
+    const previousAIQuestion = [...turns].reverse().find((turn) => turn.speaker === 'ai')?.text
+      || memory.askedQuestions.at(-1)
+      || ''
+    const previousFocus = inferQuestionFocus(previousAIQuestion)
+    const contextualMemory = previousFocus && memory.questionFocuses.at(-1) !== previousFocus
+      ? { ...memory, questionFocuses: [...memory.questionFocuses, previousFocus].slice(-10) }
+      : memory
+    const understanding = childInputNormalizer.normalize(childMessage, contextualMemory, previousAIQuestion)
     setTurns((items) => [...items, { id: crypto.randomUUID(), speaker: 'child', text: childMessage }])
     setInput('')
     setThinking(true)
     try {
       const response = await aiProvider.respondToChild({
         childMessage,
+        drawingImageDataUrl: drawing,
+        creationState: ready ? 'ready-to-create' : 'exploring',
         rawChildInput: childMessage,
         normalizedChildInput: understanding.normalized,
         inputUnderstanding: understanding,
-        memory,
+        memory: contextualMemory,
         turnCount: turns.filter((turn) => turn.speaker === 'child').length,
         drawingAnalysis: analysis,
         conversationHistory: turns.map(({ speaker, text }) => ({ speaker, text })),
-        previousAIQuestion: memory.askedQuestions.at(-1) || '',
+        previousAIQuestion,
         previousQuestions: memory.askedQuestions,
       })
       setMemory(response.memory)
       setReady(response.readyToVisualize)
+      setResponseSource(response.debug?.model
+        ? `${response.debug.responseSource}:${response.debug.model}`
+        : response.debug?.responseSource || 'unknown')
       setTurns((items) => [...items, {
         id: crypto.randomUUID(),
         speaker: 'ai',
@@ -237,18 +249,30 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
               {!memory.mainSubject && <small>이야기를 나누면 중요한 생각이 여기에 모여</small>}
             </div>
           </div>
+          {import.meta.env.DEV && analysis && (
+            <details className="conversation-debug-panel">
+              <summary>Vision / Conversation Debug</summary>
+              <dl>
+                <div><dt>Image version/hash</dt><dd>{analysis.imageHash}</dd></div>
+                <div><dt>Vision provider</dt><dd>{analysis.visionProvider}</dd></div>
+                <div><dt>Analysis source</dt><dd>{analysis.analysisSource}</dd></div>
+                <div><dt>Detected subjects</dt><dd>{analysis.likelySubjects.map((item) => `${item.label} (${item.confidence.toFixed(2)})`).join(' · ') || '없음'}</dd></div>
+                <div><dt>Visual features</dt><dd>{analysis.visualFeatures.join(' · ') || '없음'}</dd></div>
+                <div><dt>Conversation response source</dt><dd>{responseSource}</dd></div>
+              </dl>
+            </details>
+          )}
         </aside>
       </div>
     </main>
   )
 }
 
-function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
+function Visualize({ drawing, memory, onBack, imageProvider }: {
   drawing: string
   memory: CreativeMemory
   onBack: () => void
   imageProvider: ImageProvider
-  onMotion: (image: string) => void
 }) {
   const [versions, setVersions] = useState<ImageVersion[]>([
     {
@@ -398,10 +422,7 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
           </dl>
         </details>
       )}
-      <section className="motion-entry">
-        <div><span><Play size={16} fill="currentColor" /></span><p><strong>이제 그림에 움직임을 넣어볼까?</strong><small>게임이 아니라, 네 그림이 살아나는 모습을 먼저 볼 거야.</small></p></div>
-        <button onClick={() => onMotion(current.imageUrl)}>내 그림 움직여보기 <span>→</span></button>
-      </section>
+      <MotionEntry />
     </main>
   )
 }
@@ -409,15 +430,18 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
 export default function Root() {
   const [step, setStep] = useState<StudioStep>('start')
   const [drawing, setDrawing] = useState('')
-  const [motionImage, setMotionImage] = useState('')
   const [memory, setMemory] = useState<CreativeMemory>(EMPTY_MEMORY)
   const [provider, setProvider] = useState<ProviderKind>(() => {
     const saved = localStorage.getItem('imakers-provider')
-    return saved === 'openai' || saved === 'anthropic' || saved === 'mock' ? saved : 'mock'
+    if (saved === 'openai' || saved === 'anthropic' || saved === 'mock') return saved
+    const configured = import.meta.env.VITE_AI_PROVIDER
+    return configured === 'openai' || configured === 'anthropic' ? configured : 'mock'
   })
   const [imageProviderKind, setImageProviderKind] = useState<ImageProviderKind>(() => {
     const saved = localStorage.getItem('imakers-image-provider')
-    return saved === 'openai' ? 'openai' : 'mock'
+    if (saved === 'openai' || saved === 'fal' || saved === 'mock') return saved
+    const configured = import.meta.env.VITE_IMAGE_PROVIDER
+    return configured === 'openai' || configured === 'fal' ? configured : 'mock'
   })
   const clients = useMemo(() => createProviderClients(provider, imageProviderKind), [provider, imageProviderKind])
 
@@ -437,13 +461,10 @@ export default function Root() {
 
   if (step === 'draw') return <DrawingStudio onComplete={useDrawing} onBack={() => setStep('start')} />
   if (step === 'conversation' && drawing) {
-    return <Conversation drawing={drawing} aiProvider={clients.aiProvider} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
+    return <Conversation key={drawing} drawing={drawing} aiProvider={clients.aiProvider} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
   }
   if (step === 'visualize' && drawing) {
-    return <Visualize drawing={drawing} memory={memory} imageProvider={clients.imageProvider} onBack={() => setStep('conversation')} onMotion={(image) => { setMotionImage(image); setStep('motion') }} />
-  }
-  if (step === 'motion' && motionImage) {
-    return <MotionStudio image={motionImage} memory={memory} onBack={() => setStep('visualize')} />
+    return <Visualize drawing={drawing} memory={memory} imageProvider={clients.imageProvider} onBack={() => setStep('conversation')} />
   }
   return <StartScreen onDraw={() => setStep('draw')} onUpload={useDrawing} provider={provider} onProviderChange={changeProvider} imageProviderKind={imageProviderKind} onImageProviderChange={changeImageProvider} />
 }

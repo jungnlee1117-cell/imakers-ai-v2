@@ -3,11 +3,25 @@ export type StudioStep = 'start' | 'draw' | 'conversation' | 'visualize' | 'moti
 export type ResponseElement = 'REACT' | 'CONNECT' | 'EXPAND' | 'SUGGEST' | 'SUPPORT'
 
 export type UnderstandingConfidence = 'high' | 'medium' | 'low'
+export type ChildIntent = 'CREATIVE_CONTENT' | 'ANSWER' | 'SOCIAL' | 'META_FEEDBACK' | 'COMMAND'
+export type QuestionFocus =
+  | 'identity'
+  | 'color'
+  | 'place'
+  | 'action'
+  | 'emotion'
+  | 'relationship'
+  | 'object'
+  | 'goal'
+  | 'problem'
+  | 'change'
+  | 'consent'
 
 export interface UnderstoodInput {
   raw: string
   normalized: string
   meaning: string
+  intent: ChildIntent
   confidence: UnderstandingConfidence
   needsClarification: boolean
 }
@@ -17,16 +31,30 @@ export interface DrawingObservation {
   confidence: 'high' | 'medium' | 'low'
 }
 
+export interface VisualEntity {
+  label: string
+  confidence: number
+}
+
 export interface DrawingAnalysis {
+  likelySubjects: VisualEntity[]
+  visualFeatures: string[]
+  expressions: string[]
+  objects: VisualEntity[]
+  scene: string
   observations: DrawingObservation[]
-  uncertain: string[]
+  uncertainties: string[]
   openingMessage: string
+  imageHash: string
+  visionProvider: string
+  analysisSource: 'mock' | 'vision'
 }
 
 export interface CreativeMemory {
   mainSubject: string
   confirmedFacts: string[]
   rejectedIdeas: string[]
+  supersededIdeas: string[]
   childPreferences: string[]
   mood: string
   askedQuestions: string[]
@@ -68,6 +96,7 @@ export const EMPTY_MEMORY: CreativeMemory = {
   mainSubject: '',
   confirmedFacts: [],
   rejectedIdeas: [],
+  supersededIdeas: [],
   childPreferences: [],
   mood: '밝고 따뜻한 분위기',
   askedQuestions: [],

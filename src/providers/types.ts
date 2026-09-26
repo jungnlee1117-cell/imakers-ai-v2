@@ -2,6 +2,8 @@ import type { CreativeMemory, DrawingAnalysis, ResponseElement, UnderstoodInput 
 
 export interface ChildResponseContext {
   childMessage: string
+  drawingImageDataUrl: string
+  creationState: 'exploring' | 'ready-to-create' | 'editing'
   rawChildInput: string
   normalizedChildInput: string
   inputUnderstanding: UnderstoodInput
@@ -22,6 +24,10 @@ export interface AIResponse {
   question?: string
   memory: CreativeMemory
   readyToVisualize: boolean
+  debug?: {
+    responseSource: string
+    model?: string
+  }
 }
 
 export interface AIProvider {
@@ -60,4 +66,4 @@ export interface ImageProvider {
   editImage(input: EditImageInput): Promise<GeneratedImageAsset>
 }
 
-export type ProviderKind = 'mock' | 'openai' | 'anthropic' | 'local'
+export type ProviderKind = 'mock' | 'openai' | 'anthropic' | 'fal' | 'local'

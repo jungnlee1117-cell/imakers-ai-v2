@@ -18,6 +18,8 @@ interface StructuredCoachResponse {
   question: string
   memory: CreativeMemory
   ready_to_visualize: boolean
+  provider?: string
+  model?: string
 }
 
 class RemoteAIProvider implements AIProvider {
@@ -59,6 +61,10 @@ class RemoteAIProvider implements AIProvider {
         ...(data.question ? ['EXPAND' as const] : []),
       ],
       readyToVisualize: data.ready_to_visualize,
+      debug: {
+        responseSource: data.provider || this.kind,
+        model: data.model,
+      },
     }
   }
 
@@ -105,7 +111,7 @@ class RemoteImageProvider implements ImageProvider {
 }
 
 const apiBase = import.meta.env.VITE_AI_API_BASE || '/api'
-export type ImageProviderKind = 'mock' | 'openai'
+export type ImageProviderKind = 'mock' | 'openai' | 'fal'
 
 export function createProviderClients(kind: ProviderKind, imageKind: ImageProviderKind): {
   aiProvider: AIProvider

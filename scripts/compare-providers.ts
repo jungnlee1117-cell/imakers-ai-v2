@@ -14,7 +14,7 @@ interface ScenarioResult {
   outputTokens?: number
   estimatedCostUsd?: number
   checks?: {
-    exactlyOneQuestion: boolean
+    atMostOneQuestion: boolean
     noExactRepeatedQuestion: boolean
     rejectionCaptured: boolean | null
   }
@@ -64,7 +64,7 @@ for (const scenario of providerScenarios) {
         outputTokens: result.usage?.outputTokens,
         estimatedCostUsd: estimatedCost(provider.name, result.usage?.inputTokens, result.usage?.outputTokens),
         checks: {
-          exactlyOneQuestion: questionCount === 1,
+          atMostOneQuestion: questionCount <= 1,
           noExactRepeatedQuestion: !repeated,
           rejectionCaptured,
         },

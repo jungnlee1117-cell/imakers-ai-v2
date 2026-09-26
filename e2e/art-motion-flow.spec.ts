@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('draws with tactile tools and animates the finished artwork', async ({ page }) => {
+test('draws with tactile tools and hides unreleased motion objects', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '그림 그리기 시작하기' }).click()
 
@@ -60,25 +60,8 @@ test('draws with tactile tools and animates the finished artwork', async ({ page
   await expect(page.getByText('어디를 바꾸고 싶어?')).toBeVisible()
   await expect(page.locator('.image-loading')).toBeHidden({ timeout: 5_000 })
 
-  await page.getByRole('button', { name: /내 그림 움직여보기/ }).click()
-  await expect(page.getByRole('heading', { name: '어떤 부분이 움직였으면 좋겠어?' })).toBeVisible()
-
-  await page.getByRole('button', { name: /하늘과 구름/ }).click()
-  const jump = page.locator('.preset-grid button').filter({ hasText: '점프' })
-  await jump.click()
-  await expect(jump).toHaveClass(/active/)
-
-  const motionInput = page.getByPlaceholder('예: 더 높이 뛰어')
-  await motionInput.fill('더 빨리')
-  await motionInput.press('Enter')
-  await expect(page.locator('.parameter-row').filter({ hasText: '빠르기' }).locator('button.active')).toHaveText('빠르게')
-
-  await motionInput.fill('왼쪽으로 가')
-  await motionInput.press('Enter')
-  await expect(page.locator('.parameter-row').filter({ hasText: '방향' }).locator('button.active')).toHaveText('왼쪽')
-
-  await motionInput.fill('엄청 크게 흔들어')
-  await motionInput.press('Enter')
-  await expect(page.locator('.preset-grid button.active')).toContainText('흔들기')
-  await expect(page.locator('.parameter-row').filter({ hasText: '크기' }).locator('button.active')).toHaveText('크게')
+  await expect(page.getByText('움직임 기능 준비 중')).toBeVisible()
+  await expect(page.getByRole('button', { name: /내 그림 움직여보기/ })).toHaveCount(0)
+  await expect(page.getByText('하늘과 구름')).toHaveCount(0)
+  await expect(page.getByText('배경의 특별한 곳')).toHaveCount(0)
 })

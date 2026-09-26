@@ -1,11 +1,13 @@
 import { z } from 'zod'
 
-export const providerKindSchema = z.enum(['openai', 'anthropic', 'mock'])
+export const providerKindSchema = z.enum(['openai', 'anthropic', 'fal', 'mock'])
+export const childIntentSchema = z.enum(['CREATIVE_CONTENT', 'ANSWER', 'SOCIAL', 'META_FEEDBACK', 'COMMAND'])
 
 export const creativeMemorySchema = z.object({
   mainSubject: z.string().default(''),
   confirmedFacts: z.array(z.string()).default([]),
   rejectedIdeas: z.array(z.string()).default([]),
+  supersededIdeas: z.array(z.string()).default([]),
   childPreferences: z.array(z.string()).default([]),
   mood: z.string().default('밝고 따뜻한 분위기'),
   askedQuestions: z.array(z.string()).default([]),
@@ -16,6 +18,7 @@ export const creativeMemorySchema = z.object({
     raw: z.string(),
     normalized: z.string(),
     meaning: z.string(),
+    intent: childIntentSchema.default('CREATIVE_CONTENT'),
     confidence: z.enum(['high', 'medium', 'low']),
     needsClarification: z.boolean(),
   })).default([]),
@@ -26,15 +29,42 @@ export const creativeMemorySchema = z.object({
 })
 
 export const drawingAnalysisSchema = z.object({
+  likelySubjects: z.array(z.object({
+    label: z.string(),
+    confidence: z.number().min(0).max(1),
+  })),
+  visualFeatures: z.array(z.string()),
+  expressions: z.array(z.string()),
+  objects: z.array(z.object({
+    label: z.string(),
+    confidence: z.number().min(0).max(1),
+  })),
+  scene: z.string(),
   observations: z.array(z.object({
     description: z.string(),
     confidence: z.enum(['high', 'medium', 'low']),
   })),
-  uncertain: z.array(z.string()),
+  uncertainties: z.array(z.string()),
   openingMessage: z.string(),
+  imageHash: z.string().optional().default(''),
+  visionProvider: z.string().optional().default(''),
+  analysisSource: z.enum(['mock', 'vision']).optional().default('vision'),
 })
 
 export const coachResponseSchema = z.object({
+  planner: z.object({
+    understoodNow: z.string(),
+    changedDecision: z.string(),
+    unresolvedThing: z.string(),
+    usefulObservation: z.string(),
+    responseAction: z.enum([
+      'REACT', 'ACKNOWLEDGE', 'CONNECT', 'OBSERVE', 'IMAGINE', 'SUGGEST',
+      'CLARIFY', 'OFFER_CHOICES', 'ASK', 'CREATE', 'EDIT', 'WAIT',
+    ]),
+    shouldAskQuestion: z.boolean(),
+    shouldOfferChoices: z.boolean(),
+    shouldCreateNow: z.boolean(),
+  }),
   reaction: z.string(),
   connection: z.string(),
   suggestion: z.string(),
@@ -51,6 +81,7 @@ export const coachResponseSchema = z.object({
     main_subject: z.string().optional().default(''),
     confirmed_facts: z.array(z.string()),
     rejected_ideas: z.array(z.string()),
+    superseded_facts: z.array(z.string()).default([]),
     preferences: z.array(z.string()),
     behaviors: z.array(z.string()),
     movement_ideas: z.array(z.string()),
@@ -60,7 +91,8 @@ export const coachResponseSchema = z.object({
     child_requested_additions: z.array(z.string()).default([]),
     mood: z.string().optional().default(''),
   }),
-  ready_to_visualize: z.boolean(),
+  // Legacy compatibility field. Creation readiness is owned by planner.shouldCreateNow.
+  ready_to_visualize: z.boolean().optional().default(false),
 })
 
 export const memorySummarySchema = creativeMemorySchema
@@ -77,12 +109,15 @@ export interface ConversationItem {
 
 export interface RespondInput {
   childMessage: string
+  drawingImageDataUrl: string
+  creationState: 'exploring' | 'ready-to-create' | 'editing'
   rawChildInput?: string
   normalizedChildInput?: string
   inputUnderstanding?: {
     raw: string
     normalized: string
     meaning: string
+    intent: z.infer<typeof childIntentSchema>
     confidence: 'high' | 'medium' | 'low'
     needsClarification: boolean
   }
@@ -109,6 +144,7 @@ export interface TimedResult<T> {
   data: T
   model: string
   latencyMs: number
+  generationPrompt?: string
   usage?: {
     inputTokens: number
     outputTokens: number

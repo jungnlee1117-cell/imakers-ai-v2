@@ -73,11 +73,11 @@ export class AnthropicAdapter implements CloudAIProvider {
     const result = await this.structured(
       drawingAnalysisSchema,
       'submit_drawing_analysis',
-      '조심스러운 그림 관찰과 첫 질문을 제출합니다.',
+      'confidence에 맞는 그림 관찰과 자연스러운 첫 대화를 제출합니다.',
       DRAWING_ANALYSIS_PROMPT,
       [
         { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
-        { type: 'text', text: '이 그림을 조심스럽게 관찰하고 첫 대화를 시작해줘.' },
+        { type: 'text', text: '이 그림의 명확한 특징을 구체적으로 보고 자연스럽게 첫 대화를 시작해줘.' },
       ],
     )
     return { data: result.data, model: this.textModel, latencyMs: elapsed(start), usage: result.usage }
@@ -85,12 +85,16 @@ export class AnthropicAdapter implements CloudAIProvider {
 
   async respondToChild(input: RespondInput) {
     const start = performance.now()
+    const image = parseDataUrl(input.drawingImageDataUrl)
     const result = await this.structured(
       coachResponseSchema,
       'submit_coach_response',
       '어린이에게 보낼 구조화된 코치 응답과 기억 업데이트를 제출합니다.',
       coachSystemPrompt(input.memory),
-      coachUserPrompt(input),
+      [
+        { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
+        { type: 'text', text: coachUserPrompt(input) },
+      ],
     )
     return { data: result.data, model: this.textModel, latencyMs: elapsed(start), usage: result.usage }
   }
