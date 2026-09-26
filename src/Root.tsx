@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, ImagePlus,
   LoaderCircle, Mic, Paintbrush, Send, Sparkles,
 } from 'lucide-react'
 import { DrawingCanvas } from './components/DrawingCanvas'
-import { aiProvider, imageProvider } from './providers'
+import { createProviderClients } from './providers'
+import type { AIProvider, ImageProvider, ProviderKind } from './providers'
 import type { ConversationTurn, CreativeMemory, DrawingAnalysis, ImageVersion, StudioStep } from './types/creative'
 import { EMPTY_MEMORY } from './types/creative'
 import './studio.css'
@@ -13,7 +14,12 @@ const Logo = () => (
   <div className="logo-mark"><span>i</span><strong>아이메이커스</strong><em>AI</em></div>
 )
 
-function StartScreen({ onDraw, onUpload }: { onDraw: () => void; onUpload: (image: string) => void }) {
+function StartScreen({ onDraw, onUpload, provider, onProviderChange }: {
+  onDraw: () => void
+  onUpload: (image: string) => void
+  provider: ProviderKind
+  onProviderChange: (provider: ProviderKind) => void
+}) {
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -28,6 +34,17 @@ function StartScreen({ onDraw, onUpload }: { onDraw: () => void; onUpload: (imag
       <section className="start-card">
         <img className="start-hero-image" src="/imakers-start-hero.png" alt="그림을 보며 상상하는 아이와 AI 로봇 친구" />
         <div className="start-sky-wash" />
+        <div className="provider-switch" aria-label="AI 대화 provider">
+          {(['mock', 'openai', 'anthropic'] as ProviderKind[]).map((item) => (
+            <button
+              key={item}
+              className={provider === item ? 'active' : ''}
+              onClick={() => onProviderChange(item)}
+            >
+              {item === 'anthropic' ? 'Claude' : item === 'openai' ? 'OpenAI' : '체험'}
+            </button>
+          ))}
+        </div>
         <header className="start-brand">
           <span className="brand-star">★</span>
           <div className="rainbow-logo" aria-label="아이메이커스 AI">
@@ -60,10 +77,11 @@ function StartScreen({ onDraw, onUpload }: { onDraw: () => void; onUpload: (imag
   )
 }
 
-function Conversation({ drawing, onBack, onVisualize }: {
+function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   drawing: string
   onBack: () => void
   onVisualize: (memory: CreativeMemory) => void
+  aiProvider: AIProvider
 }) {
   const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null)
   const [turns, setTurns] = useState<ConversationTurn[]>([])
@@ -71,15 +89,23 @@ function Conversation({ drawing, onBack, onVisualize }: {
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(true)
   const [ready, setReady] = useState(false)
+  const [providerError, setProviderError] = useState('')
 
   useEffect(() => {
     let active = true
-    aiProvider.analyzeDrawing(drawing).then((result) => {
-      if (!active) return
-      setAnalysis(result)
-      setTurns([{ id: crypto.randomUUID(), speaker: 'ai', text: result.openingMessage }])
-      setThinking(false)
-    })
+    aiProvider.analyzeDrawing(drawing)
+      .then((result) => {
+        if (!active) return
+        setAnalysis(result)
+        setTurns([{ id: crypto.randomUUID(), speaker: 'ai', text: result.openingMessage }])
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setProviderError(error instanceof Error ? error.message : 'AI와 연결하지 못했어요.')
+      })
+      .finally(() => {
+        if (active) setThinking(false)
+      })
     return () => { active = false }
   }, [drawing])
 
@@ -95,6 +121,7 @@ function Conversation({ drawing, onBack, onVisualize }: {
         memory,
         turnCount: turns.filter((turn) => turn.speaker === 'child').length,
         drawingAnalysis: analysis,
+        conversationHistory: turns.map(({ speaker, text }) => ({ speaker, text })),
       })
       setMemory(response.memory)
       setReady(response.readyToVisualize)
@@ -104,6 +131,8 @@ function Conversation({ drawing, onBack, onVisualize }: {
         text: response.text,
         elements: response.elements,
       }])
+    } catch (error) {
+      setProviderError(error instanceof Error ? error.message : 'AI와 연결하지 못했어요.')
     } finally {
       setThinking(false)
     }
@@ -149,7 +178,9 @@ function Conversation({ drawing, onBack, onVisualize }: {
             <i className="online-dot" />
           </div>
           <div className="coach-response">
-            {latestAI ? <p>{latestAI.text}</p> : <p className="muted">그림 속 작은 단서들을 찾고 있어…</p>}
+            {providerError
+              ? <div className="provider-error"><strong>AI 연결을 확인해줘</strong><span>{providerError}</span><button onClick={onBack}>Provider 다시 고르기</button></div>
+              : latestAI ? <p>{latestAI.text}</p> : <p className="muted">그림 속 작은 단서들을 찾고 있어…</p>}
             {thinking && analysis && <div className="typing"><i /><i /><i /></div>}
           </div>
           {ready ? (
@@ -193,10 +224,11 @@ function Conversation({ drawing, onBack, onVisualize }: {
   )
 }
 
-function Visualize({ drawing, memory, onBack }: {
+function Visualize({ drawing, memory, onBack, imageProvider }: {
   drawing: string
   memory: CreativeMemory
   onBack: () => void
+  imageProvider: ImageProvider
 }) {
   const [versions, setVersions] = useState<ImageVersion[]>([
     { id: 1, label: '첫 번째 펼침', request: '처음 함께 만든 모습', createdAt: '방금' },
@@ -207,8 +239,12 @@ function Visualize({ drawing, memory, onBack }: {
   const [imageError, setImageError] = useState('')
 
   useEffect(() => {
-    imageProvider.generateFromDrawing({ drawingDataUrl: drawing, memory }).finally(() => setGenerating(false))
-  }, [drawing, memory])
+    imageProvider.generateFromDrawing({ drawingDataUrl: drawing, memory })
+      .catch((error: unknown) => {
+        setImageError(error instanceof Error ? error.message : '이미지를 펼치지 못했어요.')
+      })
+      .finally(() => setGenerating(false))
+  }, [drawing, memory, imageProvider])
 
   const edit = async () => {
     if (!request.trim() || generating) return
@@ -321,6 +357,16 @@ export default function Root() {
   const [step, setStep] = useState<StudioStep>('start')
   const [drawing, setDrawing] = useState('')
   const [memory, setMemory] = useState<CreativeMemory>(EMPTY_MEMORY)
+  const [provider, setProvider] = useState<ProviderKind>(() => {
+    const saved = localStorage.getItem('imakers-provider')
+    return saved === 'openai' || saved === 'anthropic' || saved === 'mock' ? saved : 'mock'
+  })
+  const clients = useMemo(() => createProviderClients(provider), [provider])
+
+  const changeProvider = (next: ProviderKind) => {
+    setProvider(next)
+    localStorage.setItem('imakers-provider', next)
+  }
 
   const useDrawing = (image: string) => {
     setDrawing(image)
@@ -329,10 +375,10 @@ export default function Root() {
 
   if (step === 'draw') return <DrawingCanvas onComplete={useDrawing} onBack={() => setStep('start')} />
   if (step === 'conversation' && drawing) {
-    return <Conversation drawing={drawing} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
+    return <Conversation drawing={drawing} aiProvider={clients.aiProvider} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
   }
   if (step === 'visualize' && drawing) {
-    return <Visualize drawing={drawing} memory={memory} onBack={() => setStep('conversation')} />
+    return <Visualize drawing={drawing} memory={memory} imageProvider={clients.imageProvider} onBack={() => setStep('conversation')} />
   }
-  return <StartScreen onDraw={() => setStep('draw')} onUpload={useDrawing} />
+  return <StartScreen onDraw={() => setStep('draw')} onUpload={useDrawing} provider={provider} onProviderChange={changeProvider} />
 }

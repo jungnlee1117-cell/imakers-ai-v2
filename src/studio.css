@@ -90,6 +90,7 @@
 .online-dot { margin-left:auto; width:7px; height:7px; border-radius:50%; background:#76a875; box-shadow:0 0 0 4px #e9f2e7; }
 .coach-response { flex:1; min-height:190px; display:flex; flex-direction:column; justify-content:center; padding:28px 4px; }
 .coach-response p { font-family:'Gowun Dodum', sans-serif; font-size:20px; line-height:1.8; letter-spacing:-.02em; margin:0; white-space:pre-line; }.coach-response .muted { color:#8a9690; }
+.provider-error { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 15px; border: 1px solid #f0d4ce; border-radius: 12px; background: #fff8f5; }.provider-error strong { color: #a54438; font-size: 13px; }.provider-error span { color: #8e665f; font-size: 11px; line-height: 1.5; }.provider-error button { border: 0; border-radius: 8px; padding: 7px 10px; background: #315f4e; color: white; font-size: 10px; cursor: pointer; }
 .typing { display:flex; gap:4px; margin-top:15px; }.typing i { width:6px; height:6px; border-radius:50%; background:#7d9186; animation:pulse 1s infinite alternate; }.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
 @keyframes pulse { to { opacity:.25; transform:translateY(-3px); } }
 .reply-area { border-top:1px solid #eceee9; padding-top:19px; }.reply-area label { font-size:11px; font-weight:700; }
@@ -161,6 +162,9 @@
   position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(180deg, rgba(224,245,255,.22) 0%, transparent 39%, transparent 55%, rgba(255,245,228,.82) 74%, #fff8ee 100%);
 }
+.provider-switch { position: absolute; z-index: 6; top: 18px; right: 18px; display: flex; gap: 3px; padding: 4px; border-radius: 18px; background: rgba(255,255,255,.74); border: 1px solid rgba(255,255,255,.85); backdrop-filter: blur(12px); box-shadow: 0 5px 16px rgba(53,66,112,.1); }
+.provider-switch button { border: 0; border-radius: 14px; padding: 6px 9px; background: transparent; color: #647091; font-size: 8px; font-weight: 800; cursor: pointer; }
+.provider-switch button.active { background: #6548e7; color: white; box-shadow: 0 3px 9px rgba(82,56,196,.25); }
 .start-brand { position: absolute; z-index: 2; top: 32px; left: 50%; transform: translateX(-50%); text-align: center; }
 .brand-star { display: block; color: #ffc928; font-size: 36px; line-height: .8; filter: drop-shadow(0 3px 0 white) drop-shadow(0 4px 5px #ec9e2566); transform: rotate(8deg); }
 .rainbow-logo strong { display: flex; white-space: nowrap; font-size: clamp(30px, 6vw, 44px); letter-spacing: -8px; -webkit-text-stroke: 7px white; paint-order: stroke fill; filter: drop-shadow(0 5px 4px rgba(67, 93, 148, .18)); }

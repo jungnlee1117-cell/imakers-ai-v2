@@ -19,6 +19,7 @@ export interface CreativeMemory {
   rejectedIdeas: string[]
   childPreferences: string[]
   mood: string
+  askedQuestions: string[]
 }
 
 export interface ConversationTurn {
@@ -41,4 +42,5 @@ export const EMPTY_MEMORY: CreativeMemory = {
   rejectedIdeas: [],
   childPreferences: [],
   mood: '밝고 따뜻한 분위기',
+  askedQuestions: [],
 }

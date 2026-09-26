@@ -107,7 +107,15 @@ export class MockAIProvider implements AIProvider {
   async respondToChild(context: ChildResponseContext): Promise<AIResponse> {
     await wait()
     const memory = updateMemory(context)
-    return makeResponse(context, memory)
+    const response = makeResponse(context, memory)
+    const question = response.text.match(/[^.!?]*\?/)?.[0]?.trim()
+    if (question) {
+      response.memory = {
+        ...response.memory,
+        askedQuestions: unique([...response.memory.askedQuestions, question]),
+      }
+    }
+    return response
   }
 
   async summarizeCreativeMemory(memory: CreativeMemory): Promise<CreativeMemory> {

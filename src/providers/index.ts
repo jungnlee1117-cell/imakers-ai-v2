@@ -10,6 +10,15 @@ import type {
 } from './types'
 import type { CreativeMemory, DrawingAnalysis } from '../types/creative'
 
+interface StructuredCoachResponse {
+  reaction: string
+  connection: string
+  suggestion: string
+  question: string
+  memory: CreativeMemory
+  ready_to_visualize: boolean
+}
+
 class RemoteAIProvider implements AIProvider {
   private readonly kind: Exclude<ProviderKind, 'mock'>
   private readonly baseUrl: string
@@ -25,20 +34,36 @@ class RemoteAIProvider implements AIProvider {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider: this.kind, ...body }),
     })
-    if (!response.ok) throw new Error('AI 서비스에 연결하지 못했어요.')
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ error: '' })) as { error?: string }
+      throw new Error(data.error || 'AI 서비스에 연결하지 못했어요.')
+    }
     return response.json() as Promise<T>
   }
 
   analyzeDrawing(imageDataUrl: string) {
-    return this.post<DrawingAnalysis>('/ai/analyze', { imageDataUrl })
+    return this.post<DrawingAnalysis>('/analyze-drawing', { imageDataUrl })
   }
 
-  respondToChild(context: ChildResponseContext) {
-    return this.post<AIResponse>('/ai/respond', { context })
+  async respondToChild(context: ChildResponseContext): Promise<AIResponse> {
+    const data = await this.post<StructuredCoachResponse>('/respond-to-child', { context })
+    const pieces = [data.reaction, data.connection, data.suggestion, data.question].filter(Boolean)
+    return {
+      ...data,
+      text: pieces.join(' '),
+      elements: [
+        ...(data.reaction ? ['REACT' as const] : []),
+        ...(data.connection ? ['CONNECT' as const] : []),
+        ...(data.suggestion ? ['SUGGEST' as const] : []),
+        ...(data.question ? ['EXPAND' as const] : []),
+      ],
+      readyToVisualize: data.ready_to_visualize,
+    }
   }
 
-  summarizeCreativeMemory(memory: CreativeMemory) {
-    return this.post<CreativeMemory>('/ai/memory', { memory })
+  async summarizeCreativeMemory(memory: CreativeMemory) {
+    const data = await this.post<{ memory: CreativeMemory }>('/summarize-memory', { memory })
+    return data.memory
   }
 }
 
@@ -57,27 +82,41 @@ class RemoteImageProvider implements ImageProvider {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider: this.kind, ...body }),
     })
-    if (!response.ok) throw new Error('이미지를 만드는 중 문제가 생겼어요.')
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ error: '' })) as { error?: string }
+      throw new Error(data.error || '이미지를 만드는 중 문제가 생겼어요.')
+    }
     const data = (await response.json()) as { imageUrl: string }
     return data.imageUrl
   }
 
   generateFromDrawing(input: GenerateImageInput) {
-    return this.post('/images/generate', { ...input })
+    return this.post('/generate-image', { ...input })
   }
 
   editImage(input: EditImageInput) {
-    return this.post('/images/edit', { ...input })
+    return this.post('/edit-image', {
+      drawingDataUrl: input.sourceImageUrl,
+      request: input.request,
+      memory: input.memory,
+    })
   }
 }
 
-const kind = (import.meta.env.VITE_AI_PROVIDER || 'mock') as ProviderKind
 const apiBase = import.meta.env.VITE_AI_API_BASE || '/api'
+const imageKind = (import.meta.env.VITE_IMAGE_PROVIDER || 'openai') as Exclude<ProviderKind, 'mock'>
 
-export const aiProvider: AIProvider =
-  kind === 'mock' ? new MockAIProvider() : new RemoteAIProvider(kind, apiBase)
+export function createProviderClients(kind: ProviderKind): {
+  aiProvider: AIProvider
+  imageProvider: ImageProvider
+} {
+  if (kind === 'mock') {
+    return { aiProvider: new MockAIProvider(), imageProvider: new MockImageProvider() }
+  }
+  return {
+    aiProvider: new RemoteAIProvider(kind, apiBase),
+    imageProvider: new RemoteImageProvider(imageKind, apiBase),
+  }
+}
 
-export const imageProvider: ImageProvider =
-  kind === 'mock' ? new MockImageProvider() : new RemoteImageProvider(kind, apiBase)
-
-export type { AIProvider, ImageProvider } from './types'
+export type { AIProvider, ImageProvider, ProviderKind } from './types'

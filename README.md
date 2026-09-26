@@ -9,7 +9,7 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-프로덕션 빌드는 `npm run build`로 확인할 수 있습니다.
+`npm run dev`는 Vite frontend와 Express API를 함께 실행합니다. 프로덕션 frontend 빌드는 `npm run build`, 서버 type check는 `npm run typecheck:server`로 확인할 수 있습니다.
 
 ## 현재 범위
 
@@ -33,15 +33,25 @@ VITE_AI_PROVIDER=openai
 VITE_AI_API_BASE=/api
 ```
 
-프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
+시작 화면 우측 상단에서 체험(mock), OpenAI, Claude를 선택할 수 있습니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
 
-- `POST /api/ai/analyze`
-- `POST /api/ai/respond`
-- `POST /api/ai/memory`
-- `POST /api/images/generate`
-- `POST /api/images/edit`
+- `POST /api/analyze-drawing`
+- `POST /api/respond-to-child`
+- `POST /api/summarize-memory`
+- `POST /api/generate-image`
+- `POST /api/edit-image`
 
 OpenAI/Anthropic API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`처럼 서버 전용 환경 변수로 관리해야 합니다. Provider 계약은 `src/providers/types.ts`, 원격 어댑터는 `src/providers/index.ts`, mock 동작은 `src/providers/mock.ts`에 있습니다.
+
+Cloud adapter는 `server/providers/openai.ts`와 `server/providers/anthropic.ts`에 있습니다. Claude는 자체 이미지 생성 API가 없으므로 Claude 대화를 선택해도 시각화는 기본적으로 OpenAI image provider를 사용합니다.
+
+동일한 10개 시나리오 비교:
+
+```bash
+npm run test:providers
+```
+
+평가 기준과 기록은 `AI_PROVIDER_COMPARISON.md`를 참고하세요.
 
 ## Creative Memory
 
@@ -52,6 +62,7 @@ OpenAI/Anthropic API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_A
 - `rejectedIdeas`: 거절한 AI 아이디어
 - `childPreferences`: 크기, 분위기 등 선호
 - `mood`: 이미지 생성에 사용할 분위기
+- `askedQuestions`: 반복을 피해야 하는 이전 질문
 
 실제 서비스에서는 이 객체 전체를 대화 및 이미지 생성 요청에 포함하도록 설계되어 있습니다.
 # React + TypeScript + Vite

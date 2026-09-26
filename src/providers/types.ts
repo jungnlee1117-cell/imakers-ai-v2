@@ -5,11 +5,16 @@ export interface ChildResponseContext {
   memory: CreativeMemory
   turnCount: number
   drawingAnalysis: DrawingAnalysis
+  conversationHistory: Array<{ speaker: 'ai' | 'child'; text: string }>
 }
 
 export interface AIResponse {
   text: string
   elements: ResponseElement[]
+  reaction?: string
+  connection?: string
+  suggestion?: string
+  question?: string
   memory: CreativeMemory
   readyToVisualize: boolean
 }
