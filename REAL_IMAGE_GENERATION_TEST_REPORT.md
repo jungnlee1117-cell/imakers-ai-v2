@@ -2,27 +2,92 @@
 
 ## 결론
 
-**실제 FAL API 요청은 전송됐지만 이미지 생성은 실패했다.**
+**PASS — 실제 FAL / FLUX.1 Kontext로 생성 1회와 연속 편집 2회가 모두 성공했다.**
 
 - 실행일: 2026-09-26 (UTC)
-- Image provider: `fal`
-- 생성 모델: `fal-ai/flux-pro/kontext/text-to-image`
-- 편집 모델: `fal-ai/flux-pro/kontext`
-- Mock 사용: **NO**
-- 실제 FAL 호출: **YES**
-- 실제 FAL 호출 성공: **NO**
-- FAL 응답: HTTP `403` — `User is locked. Reason: TOP_UP.`
+- Provider: `fal`
+- Mock 사용: **NO** (`isMock: false` 3/3)
 - 비밀 키 값 출력/기록: **NO**
+- 최종 검증 비용: **$0.12** (`$0.04 × 3 images`)
+- 최종 결과: 돼지·숲·빨간 가방·선물 생성, 밤 전환, 돼지 확대가 모두 실제 이미지에 반영됨
 
-`FAL_KEY`는 Runtime Secret으로 서버에 주입되어 인증 헤더를 포함한 실제 요청이 FAL endpoint까지 도달했다. 그러나 FAL 계정이 결제/크레딧 충전을 요구하는 잠금 상태여서 첫 생성 요청을 거부했다. 구현은 실패 시 Mock으로 fallback하지 않으므로 이 결과는 Mock 이미지로 대체되지 않았다.
+## 실제 model / endpoint
 
-## 실행 시나리오
+| 용도 | Model ID | Endpoint |
+|---|---|---|
+| 최초 생성 | `fal-ai/flux-pro/kontext/text-to-image` | `POST https://fal.run/fal-ai/flux-pro/kontext/text-to-image` |
+| 후속 편집 | `fal-ai/flux-pro/kontext` | `POST https://fal.run/fal-ai/flux-pro/kontext` |
 
-| 단계 | 요청 | 결과 | 새 image asset / image ID |
-|---|---|---|---|
-| 1 | 돼지 + 숲 + 빨간 가방 + 선물 | **FAIL** — FAL HTTP 403 `TOP_UP` | 생성되지 않음 |
-| 2 | 밤으로 바꿔줘 | **NOT RUN** — 1단계 source asset 없음 | 생성되지 않음 |
-| 3 | 돼지를 더 크게 해줘 | **NOT RUN** — 2단계 source asset 없음 | 생성되지 않음 |
+두 모델의 공식 가격은 각각 이미지 1장당 `$0.04`이다. API 응답에는 token/compute usage가 별도로 제공되지 않아 생성 장수 기준 비용을 기록했다.
+
+## 최종 검증 체인
+
+| 단계 | 요청 | Image ID | latency | 비용 |
+|---|---|---|---:|---:|
+| 1 | 돼지 + 숲 + 빨간 가방 + 친구에게 줄 선물 | `fal-7a179b84-7607-404b-b567-caa06de83a3b` | 5,598 ms | $0.04 |
+| 2 | 밤으로 바꿔줘 | `fal-f81f3361-83e9-4d1f-8a8a-bf71b164f5a4` | 10,799 ms | $0.04 |
+| 3 | 돼지를 더 크게 해줘 | `fal-353a2c06-9dc5-4ccd-8cc5-85f893e5effc` | 12,153 ms | $0.04 |
+
+### Asset URL과 연결
+
+1. 생성: `https://v3b.fal.media/files/b/0aabf964/W3kFPLQTiBJnSQ4olZGAi_64993005f70743f0b72080b03393c700.png`
+2. 밤 편집: `https://v3b.fal.media/files/b/0aabf965/0Qb_0UOM0SCyS5y4uXXQM_361cff3c7c3a4ed095d1983a1352efcd.png`
+   - `previousImageId`: `fal-7a179b84-7607-404b-b567-caa06de83a3b`
+3. 돼지 확대: `https://v3b.fal.media/files/b/0aabf966/9K5m8br5_CUWlKhnU3twg_55055bb4b3444c969234025d8be29ed7.png`
+   - `previousImageId`: `fal-f81f3361-83e9-4d1f-8a8a-bf71b164f5a4`
+
+세 파일은 모두 실제 `1024 × 1024` PNG이며 URL, image ID, SHA-256이 모두 다르다.
+
+| 단계 | SHA-256 |
+|---|---|
+| 1 | `c68a557f4180f6654aff64f5357b2893cf1c2928d92430e3fa095e3d1197b603` |
+| 2 | `9dfc37aacc0a4d4f976eac2f197d9895ba480617c6d35a990941768cd674209d` |
+| 3 | `1eef9ad55d238ff9dc3e7363630f63a253bd60c26b3f903860560bb962995b81` |
+
+## 시각 검증
+
+### 1. 최초 생성
+
+**PASS**
+
+- 둥근 분홍색 돼지가 중심 주인공으로 보임
+- 나무·꽃·풀·숲길이 명확함
+- 빨간 배낭이 명확하게 보임
+- 리본으로 포장된 선물을 두 손으로 들고 있음
+- 밝은 낮의 동화책 일러스트 스타일이 반영됨
+
+### 2. “밤으로 바꿔줘”
+
+**PASS**
+
+- `CHANGE`: 밝은 낮이 짙은 파란 밤, 달, 별, 달빛으로 변경됨
+- `KEEP`: 같은 분홍색 돼지의 얼굴·몸·포즈, 빨간 배낭, 선물, 숲길, 동화책 스타일이 유지됨
+- 원본 1단계 asset은 덮어쓰지 않고 별도 URL/ID로 보존됨
+- 조명에 맞춘 색·명암과 일부 배경 디테일은 재렌더링됐지만, 요청과 무관한 핵심 요소의 소실은 없음
+
+### 3. “돼지를 더 크게 해줘”
+
+**PASS**
+
+- `CHANGE`: 2단계보다 돼지의 머리와 몸이 프레임에서 더 크게 보임
+- `KEEP`: 밤, 달, 별, 숲, 빨간 배낭, 선물, 캐릭터 정체성, 화풍이 유지됨
+- 2단계 구도와 배경은 대부분 유지됨
+- 생성형 편집 특성상 얼굴선·선물 위치·식물 디테일에 소폭 재렌더링이 있으나 의미가 바뀌거나 요소가 불필요하게 추가/삭제되지는 않음
+
+## 항목별 판정
+
+| 검증 항목 | 판정 | 근거 |
+|---|---|---|
+| 실제 FAL API 호출 성공 | **PASS** | 실제 FAL URL 3개와 FLUX Kontext 응답 수신 |
+| 실제 model/endpoint 기록 | **PASS** | 생성/편집 Model ID와 endpoint를 위에 기록 |
+| 원본 그림 보존 | **PASS** | 각 source asset이 별도 URL/ID/SHA로 남고 다음 편집의 입력으로 연결됨 |
+| 단계별 새 asset / image ID | **PASS** | URL, ID, SHA가 3단계 모두 고유 |
+| KEEP / CHANGE 반영 | **PASS** | 밤 전환과 돼지 확대가 반영되고 핵심 요소 유지 |
+| 불필요한 요소 변경 방지 | **PASS (minor redraw)** | 핵심 의미·소품·배경 유지, 세부 픽셀만 소폭 재렌더링 |
+| Mock 사용 여부 | **PASS — 미사용** | 모든 응답 `provider: fal`, `isMock: false`; fallback 없음 |
+| 각 호출 비용/사용량 | **PASS** | 최종 3회 각각 1 image, `$0.04`; 합계 `$0.12` |
+
+## 실행 및 비용 참고
 
 테스트 명령:
 
@@ -30,30 +95,6 @@
 npm run test:fal-images
 ```
 
-이 테스트는 1단계 결과 URL을 2단계 `image_url`로, 2단계 결과 URL을 3단계 `image_url`로 전달한다. 각 응답에 대해 `provider === "fal"`, `isMock === false`, URL/ID 고유성, `previousImageId` 체인을 검사하도록 구현했다. 이번 실행에서는 1단계가 upstream에서 거부되어 후속 assertion까지 도달하지 못했다.
+최종 검증 전에 prompt 결함을 발견하기 위한 성공 응답 6회가 추가로 발생했다. 해당 재시도 비용은 `$0.24`이며, 이번 충전 후 전체 성공 호출 비용은 **$0.36** (`9 images × $0.04`)이다. 최초 크레딧 잠금 상태의 HTTP 403 요청은 이미지가 생성되지 않아 위 이미지 비용 합계에 포함하지 않았다.
 
-## 검증 결과
-
-| 검증 항목 | 상태 | 근거 |
-|---|---|---|
-| 실제 FAL API 호출 성공 여부 | **FAIL** | FAL endpoint가 HTTP 403 `TOP_UP` 반환 |
-| 원본 그림 보존 | **BLOCKED** | 비교할 생성 이미지가 없음 |
-| 단계별 새 image asset / image ID | **BLOCKED** | 첫 asset 생성 전에 거부됨 |
-| KEEP / CHANGE의 실제 이미지 반영 | **BLOCKED** | 이미지 출력이 없어 시각 검증 불가 |
-| Mock 사용 여부 | **PASS — Mock 미사용** | 요청 provider는 `fal`, 실제 FAL 오류가 그대로 반환됐고 fallback 없음 |
-
-## 구현 및 정적 검증
-
-- UI Image provider 선택지에 `FAL · FLUX Kontext` 추가
-- `VITE_IMAGE_PROVIDER=fal` 설정 지원
-- `FAL_KEY`는 서버 환경 변수로만 사용
-- FLUX Kontext text-to-image 생성 및 image-to-image 편집 어댑터 추가
-- 편집 단계에서 FAL HTTPS asset URL과 `previousImageId` 전달 지원
-- 각 성공 응답은 `fal-<UUID>` 형식의 새 image ID를 생성하고 `isMock: false`로 표시
-- `npm run typecheck:server`: PASS
-- `npm run build`: PASS
-- `npm run lint`: PASS
-
-## 재검증 조건
-
-FAL 계정 잠금 해제 또는 크레딧 충전 후 같은 명령을 다시 실행해야 한다. 그 전에는 원본 보존, 단계별 asset/ID, KEEP/CHANGE 반영 여부를 실제 이미지 기준으로 판정할 수 없다.
+정적 검증은 `npm run typecheck:server`, `npm run build`, `npm run lint`로 수행한다.
