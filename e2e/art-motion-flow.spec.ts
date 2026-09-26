@@ -50,6 +50,7 @@ test('draws with tactile tools and animates the finished artwork', async ({ page
   for (const answer of ['공룡 자동차야', '엄마를 구하러 가', '용암 길을 지나가', '얼음 바퀴로 달려']) {
     await reply.fill(answer)
     await reply.press('Enter')
+    await expect(page.locator('.typing')).toBeVisible()
     await expect(page.locator('.typing')).toBeHidden({ timeout: 5_000 })
   }
 
