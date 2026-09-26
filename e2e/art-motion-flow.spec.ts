@@ -9,7 +9,7 @@ test('draws with tactile tools and animates the finished artwork', async ({ page
   const box = await canvas.boundingBox()
   if (!box) throw new Error('Canvas bounds are unavailable')
 
-  const tools = ['연필', '색연필', '크레파스', '사인펜', '붓']
+  const tools = ['연필', '크레파스', '사인펜', '붓']
   for (let index = 0; index < tools.length; index += 1) {
     const tool = page.getByRole('button', { name: tools[index], exact: true })
     await tool.click()

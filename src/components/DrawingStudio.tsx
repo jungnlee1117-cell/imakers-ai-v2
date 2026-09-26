@@ -8,11 +8,14 @@ import {
   type StrokeSize,
 } from '../drawing/types'
 
-const COLORS = ['#242424', '#ef4438', '#ff862c', '#f5c323', '#46a96e', '#2f97d5', '#5f62d9', '#9562c8']
+const COLORS = [
+  '#f04b57', '#ff7b24', '#ffc52e', '#18b96c',
+  '#7358df', '#2e9edf', '#8b5ae0', '#ef78a7',
+  '#a65a1c', '#222222', '#8b8b8b', '#fffdf8',
+]
 
 const TOOLS: Array<{ id: DrawingTool; icon: string; label: string }> = [
   { id: 'pencil', icon: '✎', label: '연필' },
-  { id: 'colored-pencil', icon: '✐', label: '색연필' },
   { id: 'crayon', icon: '▰', label: '크레파스' },
   { id: 'marker', icon: '▮', label: '사인펜' },
   { id: 'brush', icon: '◒', label: '붓' },
@@ -215,22 +218,19 @@ export function DrawingStudio({ onComplete, onBack }: DrawingStudioProps) {
   return (
     <main className="studio-page">
       <header className="draw-topbar">
-        <button className="draw-home" onClick={onBack} aria-label="처음으로"><Home size={19} /></button>
         <div className="draw-logo"><b>아이메이커스</b><small>AI MAKERS</small></div>
         <div className="draw-progress">
           <span className="active"><b>1</b>그림 그리기</span><i />
           <span><b>2</b>이야기하기</span><i />
           <span><b>3</b>함께 만들기</span>
         </div>
-        <div className="draw-bot">⌁<span>AI</span></div>
+        <div className="draw-header-actions">
+          <button className="draw-home wide" onClick={onBack}><Home size={17} /><span>처음으로</span></button>
+          <button className="header-complete" onClick={complete}><Check size={18} /> 완료하고 AI에게 보여주기 <span>→</span></button>
+        </div>
       </header>
 
-      <section className="art-studio-shell">
-        <div className="draw-title">
-          <span className="title-pencil">🖍️</span>
-          <div><h1>네 생각을 그려볼래?</h1><p>손가락이나 펜으로 자유롭게 그려봐. 어떤 그림이든 좋아!</p></div>
-        </div>
-
+      <section className="reference-studio">
         <aside className="material-dock" aria-label="그리기 도구">
           {TOOLS.map((item) => (
             <button
@@ -244,11 +244,6 @@ export function DrawingStudio({ onComplete, onBack }: DrawingStudioProps) {
         </aside>
 
         <div className="canvas-paper">
-          <div className="canvas-actions">
-            <button onClick={undo} disabled={!historyState.undo} aria-label="되돌리기"><Undo2 size={19} /><span>되돌리기</span></button>
-            <button onClick={redo} disabled={!historyState.redo} aria-label="다시 실행"><Redo2 size={19} /><span>다시</span></button>
-            <button className="delete" onClick={clear} disabled={!hasDrawn} aria-label="전체 지우기"><Trash2 size={19} /><span>전체 지우기</span></button>
-          </div>
           <canvas
             ref={canvasRef}
             aria-label="그림 그리기 캔버스"
@@ -260,10 +255,10 @@ export function DrawingStudio({ onComplete, onBack }: DrawingStudioProps) {
           {!hasDrawn && <span className="canvas-hint">좋아하는 도구를 골라서 시작해봐</span>}
         </div>
 
-        <div className="drawing-controls">
-          <div className="control-section colors">
-            <strong>색깔</strong>
-            <div>
+        <aside className="settings-panel">
+          <div className="setting-card color-card">
+            <strong>색상 선택</strong>
+            <div className="settings-colors">
               {COLORS.map((item) => (
                 <button
                   key={item}
@@ -275,33 +270,45 @@ export function DrawingStudio({ onComplete, onBack }: DrawingStudioProps) {
               ))}
             </div>
           </div>
-          <span className="control-divider" />
-          {tool === 'eraser' ? (
-            <div className="control-section sizes">
-              <strong>지우개 크기</strong>
-              <div>
-                {ERASER_SIZES.map((item) => (
-                  <button key={item.id} className={eraserSize === item.id ? 'size-button active' : 'size-button'} onClick={() => setEraserSize(item.id)}>
-                    <i style={{ width: item.dot, height: item.dot }} /><span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
+
+          <div className="setting-card stroke-card">
+            <strong>굵기 조절</strong>
+            <div className="stroke-sample" aria-hidden="true">〰</div>
+            <div className="settings-sizes">
+              {STROKE_SIZES.map((item) => (
+                <button key={item.id} className={strokeSize === item.id ? 'size-button active' : 'size-button'} onClick={() => { setStrokeSize(item.id); if (tool === 'eraser') setTool(lastDrawingTool.current) }} aria-label={item.label}>
+                  <i style={{ width: item.dot, height: item.dot }} />
+                </button>
+              ))}
             </div>
-          ) : (
-            <div className="control-section sizes">
-              <strong>선 굵기</strong>
-              <div>
-                {STROKE_SIZES.map((item) => (
-                  <button key={item.id} className={strokeSize === item.id ? 'size-button active' : 'size-button'} onClick={() => setStrokeSize(item.id)}>
-                    <i style={{ width: item.dot, height: item.dot }} /><span>{item.label}</span>
-                  </button>
-                ))}
-              </div>
+          </div>
+
+          <div className="setting-card eraser-card">
+            <strong>지우개 크기</strong>
+            <div className="eraser-options">
+              {ERASER_SIZES.map((item) => (
+                <button key={item.id} className={eraserSize === item.id && tool === 'eraser' ? 'eraser-option active' : 'eraser-option'} onClick={() => { setEraserSize(item.id); setTool('eraser') }}>
+                  <i style={{ width: item.dot + 9, height: item.dot + 9 }} /><span>{item.label}</span>
+                </button>
+              ))}
             </div>
-          )}
-          <button className="draw-complete-new" onClick={complete}>
-            <Check size={20} /> 완료하고 AI에게 보여주기 <span>→</span>
-          </button>
+          </div>
+        </aside>
+
+        <div className="reference-bottom">
+          <div className="history-dock">
+            <button onClick={undo} disabled={!historyState.undo} aria-label="되돌리기"><Undo2 size={21} /><span>되돌리기</span></button>
+            <button onClick={redo} disabled={!historyState.redo} aria-label="다시 실행"><Redo2 size={21} /><span>다시하기</span></button>
+            <button className="delete" onClick={clear} disabled={!hasDrawn} aria-label="전체 지우기"><Trash2 size={21} /><span>전체 지우기</span></button>
+          </div>
+          <div className="quick-tools">
+            <small>지금 고른 도구로 이렇게 그려져요!</small>
+            {TOOLS.filter((item) => item.id !== 'eraser').map((item) => (
+              <button key={item.id} className={tool === item.id ? `quick-${item.id} active` : `quick-${item.id}`} onClick={() => chooseTool(item.id)}>
+                <i /><span>{item.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     </main>
