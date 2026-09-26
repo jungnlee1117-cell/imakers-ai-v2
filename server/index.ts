@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { createHash } from 'node:crypto'
 import express from 'express'
 import { z } from 'zod'
 import {
@@ -87,6 +88,22 @@ function hasMechanicalUnderstanding(parts: string[]) {
   return /(?:라는|이라고)\s*뜻으로 이해했어/.test(parts.join(' '))
 }
 
+function isVisuallyGrounded(parts: string[], features: string[]) {
+  if (!features.length) return true
+  const responseText = parts.join(' ')
+  const meaningfulSingleCharacters = new Set(['코', '귀', '눈', '입', '별', '집', '꽃', '달', '날'])
+  const ignored = new Set(['보이는', '처럼', '있다', '있는', '그림', '가운데', '크고', '작고'])
+  return features.some((feature) => {
+    if (responseText.includes(feature)) return true
+    const terms = feature.match(/[가-힣A-Za-z0-9]+/g) || []
+    return terms.some((term) => (
+      !ignored.has(term)
+      && (term.length >= 2 || meaningfulSingleCharacters.has(term))
+      && responseText.includes(term)
+    ))
+  })
+}
+
 function normalizeQuestionFocus(focus: string, question: string) {
   const aliases: Record<string, string> = {
     reason: 'goal',
@@ -127,7 +144,16 @@ app.post('/api/analyze-drawing', async (request, response, next) => {
   try {
     const body = analyzeRequestSchema.parse(request.body)
     const result = await getCloudProvider(body.provider).analyzeDrawing(body.imageDataUrl)
-    response.json({ ...result.data, provider: body.provider, model: result.model, latency_ms: result.latencyMs })
+    const imageHash = createHash('sha256').update(body.imageDataUrl).digest('hex').slice(0, 16)
+    response.json({
+      ...result.data,
+      imageHash: `sha256:${imageHash}`,
+      visionProvider: `${body.provider}:${result.model}`,
+      analysisSource: 'vision',
+      provider: body.provider,
+      model: result.model,
+      latency_ms: result.latencyMs,
+    })
   } catch (error) {
     next(error)
   }
@@ -165,10 +191,17 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       result.data.suggestion,
       result.data.question,
     ])
+    const visualFeatures = body.context.drawingAnalysis.visualFeatures
+    const groundedResponse = isVisuallyGrounded([
+      result.data.reaction,
+      result.data.connection,
+      result.data.suggestion,
+      result.data.question,
+    ], visualFeatures)
     const recentFocuses = body.context.memory.questionFocuses.slice(-3)
     const initialFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const repeatedFocus = Boolean(result.data.question && initialFocus && recentFocuses.includes(initialFocus))
-    if (similarQuestion || mechanicalResponse || repeatedFocus) {
+    if (similarQuestion || mechanicalResponse || repeatedFocus || !groundedResponse) {
       const instructions = [
         similarQuestion
           ? `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하므로 생략하거나 실제 문맥에 필요한 전혀 다른 방향으로 바꿔라.`
@@ -179,11 +212,22 @@ app.post('/api/respond-to-child', async (request, response, next) => {
         repeatedFocus
           ? `질문 focus "${initialFocus}"는 최근 3개 focus ${JSON.stringify(recentFocuses)}와 겹친다. 질문을 생략하거나 실제 문맥에 필요한 다른 focus로 바꿔라.`
           : '',
+        !groundedResponse
+          ? `현재 그림의 visualFeatures ${JSON.stringify(visualFeatures)} 중 최소 하나를 응답에 자연스럽게 직접 연결하라.`
+          : '',
       ].filter(Boolean).join(' ')
       result = await provider.respondToChild({
         ...body.context,
         retryInstruction: instructions,
       })
+    }
+    if (!isVisuallyGrounded([
+      result.data.reaction,
+      result.data.connection,
+      result.data.suggestion,
+      result.data.question,
+    ], visualFeatures) && visualFeatures[0]) {
+      result.data.connection = `그림에서 보인 ${visualFeatures[0]}도 지금 이야기와 이어지네.`
     }
     const responseFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const focusStillRepeated = Boolean(responseFocus && recentFocuses.includes(responseFocus))

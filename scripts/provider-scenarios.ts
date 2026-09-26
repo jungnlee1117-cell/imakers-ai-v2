@@ -1,13 +1,21 @@
 import type { RespondInput } from '../server/contracts.js'
 
 const analysis = {
+  likelySubjects: [{ label: '초록색 캐릭터', confidence: 0.58 }],
+  visualFeatures: ['가운데 큰 초록색 형태', '아래쪽 둥근 모양 네 개', '파란색 배경 영역'],
+  expressions: [],
+  objects: [{ label: '둥근 모양', confidence: 0.45 }],
+  scene: '파란색 영역이 있는 배경',
   observations: [
     { description: '가운데 큰 초록색 형태', confidence: 'high' as const },
     { description: '아래쪽의 둥근 모양 네 개', confidence: 'medium' as const },
     { description: '배경의 파란색 영역', confidence: 'medium' as const },
   ],
-  uncertain: ['초록색 형태가 누구인지', '둥근 모양이 바퀴인지', '파란색이 물인지 하늘인지'],
+  uncertainties: ['초록색 형태가 누구인지', '둥근 모양이 바퀴인지', '파란색이 물인지 하늘인지'],
   openingMessage: '가운데 큰 초록색 모양이 먼저 보이네. 내가 다르게 봤을 수도 있어. 이 친구는 누구야?',
+  imageHash: 'sha256:provider-scenario',
+  visionProvider: 'test:fixture',
+  analysisSource: 'mock' as const,
 }
 
 const emptyMemory = {

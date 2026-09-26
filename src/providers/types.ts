@@ -22,6 +22,10 @@ export interface AIResponse {
   question?: string
   memory: CreativeMemory
   readyToVisualize: boolean
+  debug?: {
+    responseSource: string
+    model?: string
+  }
 }
 
 export interface AIProvider {

@@ -10,9 +10,17 @@ import { EMPTY_MEMORY, type CreativeMemory } from '../src/types/creative'
 import { buildImagePlan, createGeneratedImageId } from '../server/imagePlan'
 
 const analysis = {
+  likelySubjects: [{ label: '둥근 얼굴의 친구', confidence: 0.62 }],
+  visualFeatures: ['가운데의 둥근 얼굴', '아래쪽의 동그란 모양'],
+  expressions: ['표정은 명확하지 않음'],
+  objects: [],
+  scene: '배경이 거의 없는 단순한 그림',
   observations: [{ description: '가운데 둥근 얼굴 모양', confidence: 'medium' as const }],
-  uncertain: ['누구의 얼굴인지', '어떤 감정인지'],
+  uncertainties: ['누구의 얼굴인지', '어떤 감정인지'],
   openingMessage: '가운데 둥근 얼굴이 보여. 내가 다르게 봤을 수도 있어. 이 친구는 누구야?',
+  imageHash: 'sha256:test-drawing',
+  visionProvider: 'test:fixture',
+  analysisSource: 'mock' as const,
 }
 
 function context(
@@ -174,6 +182,19 @@ test('mock opening messages vary and do not force identity confirmation', async 
   for (const message of messages) {
     assert.doesNotMatch(message, /내가 다르게 봤을 수도|이 친구는 누구야/)
   }
+})
+
+test('visual context is structured and changes with a new image version', async () => {
+  const provider = new MockAIProvider()
+  const first = await provider.analyzeDrawing('data:image/png;base64,first')
+  const second = await provider.analyzeDrawing('data:image/png;base64,second')
+  assert.notEqual(first.imageHash, second.imageHash)
+  assert.equal(first.analysisSource, 'mock')
+  assert.match(first.visionProvider, /mock/)
+  assert.ok(first.visualFeatures.length > 0)
+  assert.ok(Array.isArray(first.likelySubjects))
+  assert.ok(Array.isArray(first.objects))
+  assert.ok(Array.isArray(first.uncertainties))
 })
 
 test('real flow 5: unreleased motion UI exposes no mock segmentation objects', () => {

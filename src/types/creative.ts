@@ -31,10 +31,23 @@ export interface DrawingObservation {
   confidence: 'high' | 'medium' | 'low'
 }
 
+export interface VisualEntity {
+  label: string
+  confidence: number
+}
+
 export interface DrawingAnalysis {
+  likelySubjects: VisualEntity[]
+  visualFeatures: string[]
+  expressions: string[]
+  objects: VisualEntity[]
+  scene: string
   observations: DrawingObservation[]
-  uncertain: string[]
+  uncertainties: string[]
   openingMessage: string
+  imageHash: string
+  visionProvider: string
+  analysisSource: 'mock' | 'vision'
 }
 
 export interface CreativeMemory {

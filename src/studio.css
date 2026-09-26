@@ -99,6 +99,7 @@
 .send-button { position:absolute; right:9px; bottom:10px; width:34px; height:34px; border-radius:9px; background:var(--green); color:white; }
 .reply-hint { display:block; margin-top:8px; color:#9aa49f; font-size:10px; }
 .memory-peek { margin-top:18px; border-top:1px solid #eceee9; padding-top:15px; }.memory-peek > span { font-size:9px; color:#8b9991; letter-spacing:.04em; }.memory-peek > div { margin-top:8px; display:flex; gap:5px; flex-wrap:wrap; }.memory-peek em { font-style:normal; font-size:10px; border-radius:15px; padding:5px 8px; background:#eef2ec; }.memory-peek small { font-size:10px; color:#a1aaa5; }
+.conversation-debug-panel { margin-top:12px; border:1px dashed #b9bec8; border-radius:10px; padding:9px 11px; background:#f4f5f7; color:#444d59; font-family:ui-monospace,monospace; font-size:9px; }.conversation-debug-panel summary { cursor:pointer; font-weight:800; }.conversation-debug-panel dl { display:grid; gap:6px; }.conversation-debug-panel dt { color:#858e99; }.conversation-debug-panel dd { margin:2px 0 0; overflow-wrap:anywhere; }
 .consent-card { border:1px solid #d9e3d8; border-radius:14px; background:#f1f6ef; padding:16px; display:flex; flex-direction:column; gap:9px; }.consent-card > span { font-size:11px; display:flex; align-items:center; gap:6px; color:#60766a; }
 
 /* Visualize */

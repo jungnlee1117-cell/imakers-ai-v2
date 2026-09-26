@@ -13,6 +13,7 @@
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
     "test:providers": "tsx scripts/compare-providers.ts",
     "test:fal-images": "tsx scripts/test-fal-images.ts",
+    "test:vision-grounding": "tsx scripts/test-vision-grounding.ts",
     "test:e2e": "playwright test",
     "test:ai": "tsx --test tests/*.test.ts"
   },

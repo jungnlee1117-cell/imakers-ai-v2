@@ -28,12 +28,26 @@ export const creativeMemorySchema = z.object({
 })
 
 export const drawingAnalysisSchema = z.object({
+  likelySubjects: z.array(z.object({
+    label: z.string(),
+    confidence: z.number().min(0).max(1),
+  })),
+  visualFeatures: z.array(z.string()),
+  expressions: z.array(z.string()),
+  objects: z.array(z.object({
+    label: z.string(),
+    confidence: z.number().min(0).max(1),
+  })),
+  scene: z.string(),
   observations: z.array(z.object({
     description: z.string(),
     confidence: z.enum(['high', 'medium', 'low']),
   })),
-  uncertain: z.array(z.string()),
+  uncertainties: z.array(z.string()),
   openingMessage: z.string(),
+  imageHash: z.string().optional().default(''),
+  visionProvider: z.string().optional().default(''),
+  analysisSource: z.enum(['mock', 'vision']).optional().default('vision'),
 })
 
 export const coachResponseSchema = z.object({

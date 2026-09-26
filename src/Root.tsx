@@ -102,9 +102,14 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   const [thinking, setThinking] = useState(true)
   const [ready, setReady] = useState(false)
   const [providerError, setProviderError] = useState('')
+  const [responseSource, setResponseSource] = useState('vision-opening')
 
   useEffect(() => {
     let active = true
+    setAnalysis(null)
+    setTurns([])
+    setProviderError('')
+    setThinking(true)
     aiProvider.analyzeDrawing(drawing)
       .then((result) => {
         if (!active) return
@@ -150,6 +155,9 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
       })
       setMemory(response.memory)
       setReady(response.readyToVisualize)
+      setResponseSource(response.debug?.model
+        ? `${response.debug.responseSource}:${response.debug.model}`
+        : response.debug?.responseSource || 'unknown')
       setTurns((items) => [...items, {
         id: crypto.randomUUID(),
         speaker: 'ai',
@@ -243,6 +251,19 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
               {!memory.mainSubject && <small>이야기를 나누면 중요한 생각이 여기에 모여</small>}
             </div>
           </div>
+          {import.meta.env.DEV && analysis && (
+            <details className="conversation-debug-panel">
+              <summary>Vision / Conversation Debug</summary>
+              <dl>
+                <div><dt>Image version/hash</dt><dd>{analysis.imageHash}</dd></div>
+                <div><dt>Vision provider</dt><dd>{analysis.visionProvider}</dd></div>
+                <div><dt>Analysis source</dt><dd>{analysis.analysisSource}</dd></div>
+                <div><dt>Detected subjects</dt><dd>{analysis.likelySubjects.map((item) => `${item.label} (${item.confidence.toFixed(2)})`).join(' · ') || '없음'}</dd></div>
+                <div><dt>Visual features</dt><dd>{analysis.visualFeatures.join(' · ') || '없음'}</dd></div>
+                <div><dt>Conversation response source</dt><dd>{responseSource}</dd></div>
+              </dl>
+            </details>
+          )}
         </aside>
       </div>
     </main>
@@ -414,7 +435,9 @@ export default function Root() {
   const [memory, setMemory] = useState<CreativeMemory>(EMPTY_MEMORY)
   const [provider, setProvider] = useState<ProviderKind>(() => {
     const saved = localStorage.getItem('imakers-provider')
-    return saved === 'openai' || saved === 'anthropic' || saved === 'mock' ? saved : 'mock'
+    if (saved === 'openai' || saved === 'anthropic' || saved === 'mock') return saved
+    const configured = import.meta.env.VITE_AI_PROVIDER
+    return configured === 'openai' || configured === 'anthropic' ? configured : 'mock'
   })
   const [imageProviderKind, setImageProviderKind] = useState<ImageProviderKind>(() => {
     const saved = localStorage.getItem('imakers-image-provider')

@@ -18,6 +18,11 @@ let mockOpeningIndex = 0
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))]
 
+async function imageHash(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return `sha256:${[...new Uint8Array(digest)].slice(0, 8).map((byte) => byte.toString(16).padStart(2, '0')).join('')}`
+}
+
 function inferSubject(meaning: string, current: string) {
   for (const subject of ['돼지', '우주선', '로봇', '공룡 자동차', '공룡', '고래', '펭귄']) {
     if (meaning.includes(subject)) return subject
@@ -137,6 +142,14 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   }
 
   const conversationalIntent = intent === 'SOCIAL' || intent === 'META_FEEDBACK'
+  const visibleFeature = context.drawingAnalysis.visualFeatures[0]
+  if (
+    !conversationalIntent
+    && visibleFeature
+    && ![reaction, connection, suggestion, question].join(' ').includes(visibleFeature)
+  ) {
+    connection = [connection, `그림에서 보인 ${visibleFeature}도 지금 이야기와 이어지네.`].filter(Boolean).join(' ')
+  }
   const readyToVisualize = !conversationalIntent && (context.turnCount >= 3 || memory.confirmedFacts.length >= 4)
   if (readyToVisualize && intent !== 'ANSWER' && !question) {
     question = '지금까지 말해준 모습을 그림으로 같이 펼쳐볼까?'
@@ -166,22 +179,31 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
     ],
     memory: nextMemory,
     readyToVisualize,
+    debug: { responseSource: 'mock-rule-provider', model: 'hardcoded-heuristics' },
   }
 }
 
 export class MockAIProvider implements AIProvider {
-  async analyzeDrawing(_imageDataUrl: string): Promise<DrawingAnalysis> {
+  async analyzeDrawing(imageDataUrl: string): Promise<DrawingAnalysis> {
     await wait(900)
     const openingMessage = MOCK_OPENINGS[mockOpeningIndex % MOCK_OPENINGS.length]
     mockOpeningIndex += 1
     return {
+      likelySubjects: [],
+      visualFeatures: ['가운데의 크고 선명한 형태', '아래쪽의 둥근 모양', '여러 색이 이어진 선'],
+      expressions: [],
+      objects: [],
+      scene: 'Mock provider는 실제 장면을 판별하지 않음',
       observations: [
         { description: '가운데에 크고 선명한 형태', confidence: 'high' },
         { description: '아래쪽의 둥근 모양들', confidence: 'medium' },
         { description: '여러 색이 이어진 배경', confidence: 'medium' },
       ],
-      uncertain: ['가운데 친구가 누구인지', '둥근 모양이 무엇인지', '어떤 일이 벌어지는 장면인지'],
+      uncertainties: ['가운데 친구가 누구인지', '둥근 모양이 무엇인지', '어떤 일이 벌어지는 장면인지'],
       openingMessage,
+      imageHash: await imageHash(imageDataUrl),
+      visionProvider: 'mock:hardcoded-observations',
+      analysisSource: 'mock',
     }
   }
 
