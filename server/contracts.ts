@@ -109,6 +109,7 @@ export interface TimedResult<T> {
   data: T
   model: string
   latencyMs: number
+  generationPrompt?: string
   usage?: {
     inputTokens: number
     outputTokens: number

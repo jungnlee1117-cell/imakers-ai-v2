@@ -179,7 +179,7 @@ app.post('/api/generate-image', async (request, response, next) => {
       isMock: false,
       model: result.model,
       latency_ms: result.latencyMs,
-      debug: { generationRequest: generationPrompt, keep, change },
+      debug: { generationRequest: result.generationPrompt || generationPrompt, keep, change },
     })
   } catch (error) {
     next(error)
@@ -199,7 +199,7 @@ app.post('/api/edit-image', async (request, response, next) => {
       model: result.model,
       latency_ms: result.latencyMs,
       debug: {
-        generationRequest: generationPrompt,
+        generationRequest: result.generationPrompt || generationPrompt,
         keep,
         change,
         previousImageId: body.previousImageId,

@@ -25,6 +25,32 @@ function elapsed(start: number) {
   return Math.round(performance.now() - start)
 }
 
+function list(values: string[]) {
+  return values.filter(Boolean).join('; ') || 'none'
+}
+
+function generationPrompt(input: ImageInput) {
+  const memory = input.memory
+  return `Create a polished children's storybook illustration from this creative brief.
+Main subject: ${memory.mainSubject}.
+Character appearance and props: ${memory.characterDescription}.
+Scene: ${memory.sceneDescription}.
+Required visible facts: ${list(memory.confirmedFacts)}.
+Required additions: ${list(memory.childRequestedAdditions)}.
+Visual preferences: ${list(memory.childPreferences)}.
+Mood and lighting: ${memory.mood}.
+Make every required character and prop clearly visible. Do not add captions, letters, code, UI, signatures, or watermarks.`
+}
+
+function editPrompt(input: ImageInput) {
+  const memory = input.memory
+  return `Edit the provided image.
+Change only this: ${input.request}.
+Keep unchanged: the same ${memory.mainSubject} identity and appearance (${memory.characterDescription}), the scene (${memory.sceneDescription}), existing props, art style, composition, camera angle, and all details unrelated to the requested change.
+Required facts that must remain visible: ${list(memory.confirmedFacts)}.
+Do not add or alter text, captions, signatures, or watermarks.`
+}
+
 export class FalAdapter implements CloudAIProvider {
   readonly name = 'fal' as const
   readonly textModel = 'unsupported'
@@ -54,7 +80,7 @@ export class FalAdapter implements CloudAIProvider {
     return this.unsupported()
   }
 
-  private async run(model: string, input: Record<string, unknown>): Promise<TimedResult<string>> {
+  private async run(model: string, prompt: string, input: Record<string, unknown>): Promise<TimedResult<string>> {
     const start = performance.now()
     const response = await fetch(`https://fal.run/${model}`, {
       method: 'POST',
@@ -72,12 +98,13 @@ export class FalAdapter implements CloudAIProvider {
     }
     const imageUrl = payload && 'images' in payload ? payload.images?.[0]?.url : undefined
     if (!imageUrl) throw new Error('FAL 응답에 생성된 이미지가 없습니다.')
-    return { data: imageUrl, model, latencyMs: elapsed(start) }
+    return { data: imageUrl, model, latencyMs: elapsed(start), generationPrompt: prompt }
   }
 
   generateImage(input: ImageInput) {
-    return this.run(this.textToImageModel, {
-      prompt: input.generationPrompt,
+    const prompt = generationPrompt(input)
+    return this.run(this.textToImageModel, prompt, {
+      prompt,
       aspect_ratio: '1:1',
       num_images: 1,
       output_format: 'png',
@@ -86,8 +113,9 @@ export class FalAdapter implements CloudAIProvider {
   }
 
   editImage(input: ImageInput) {
-    return this.run(this.editModel, {
-      prompt: input.generationPrompt,
+    const prompt = editPrompt(input)
+    return this.run(this.editModel, prompt, {
+      prompt,
       image_url: input.drawingDataUrl,
       num_images: 1,
       output_format: 'png',
