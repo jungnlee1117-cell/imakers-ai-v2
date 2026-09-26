@@ -25,11 +25,17 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
     return memory
   }
   const text = inputUnderstanding.normalized
+  if (
+    inputUnderstanding.intent === 'ANSWER'
+    && /^(?:응|네|아니|싫어|몰라|모르겠어)[!.~\s]*$/.test(text)
+  ) {
+    return memory
+  }
   const next = {
     ...memory,
     understoodInputs: [...memory.understoodInputs, inputUnderstanding],
   }
-  const rejection = /싫|아니|빼|없애|안 해|하지 마/.test(text)
+  const rejection = /싫|빼|없애|안 해|하지 마/.test(text)
 
   if (rejection) {
     const lastSuggestion = text.includes('날개') ? '날개 추가' : `AI가 제안한 아이디어: ${text}`
@@ -67,7 +73,7 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
 function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AIResponse {
   const text = context.normalizedChildInput
   const intent = context.inputUnderstanding.intent
-  const rejected = /싫|아니|빼|없애|안 해|하지 마/.test(text)
+  const rejected = /싫|빼|없애|안 해|하지 마/.test(text)
   const unsure = /모르|글쎄|음\.\.\.|몰라/.test(text)
   let reaction = ''
   let connection = ''
@@ -85,6 +91,8 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
     else reaction = `${text}이구나. 방금 이야기한 부분에 그 색을 이어볼게.`
   } else if (intent === 'ANSWER' && /^(응|네)[!.~\s]*$/.test(text)) {
     reaction = '응, 좋아. 그렇게 이어가보자.'
+  } else if (intent === 'ANSWER' && /^아니[!.~\s]*$/.test(text)) {
+    reaction = '알겠어. 그건 정하지 않고 다른 생각을 이어가보자.'
   } else if (rejected) {
     reaction = '좋아, 그 생각은 빼자. 네가 정한 모습이 더 중요해.'
   } else if (context.inputUnderstanding.needsClarification) {

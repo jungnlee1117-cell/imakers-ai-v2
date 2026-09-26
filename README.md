@@ -21,7 +21,7 @@ npm run dev -- --host 0.0.0.0
 - 원본/확장 이미지 나란히 비교
 - 자연어 수정과 V1/V2/V3 버전 탐색
 - 6가지 질감의 Pointer Event 기반 미술 도구
-- 객체 선택, 7가지 preset, 자연어 수정이 가능한 Motion Studio
+- 실제 객체 분리를 연결하기 전에는 준비 상태로 표시되는 Motion Studio
 - AI/Image Provider 어댑터
 
 기본값은 브라우저에서 바로 체험 가능한 mock provider입니다.
@@ -71,13 +71,13 @@ npm run test:providers
 
 실제 서비스에서는 이 객체 전체를 대화 및 이미지 생성 요청에 포함하도록 설계되어 있습니다.
 
-아이 입력은 `src/ai/childInputNormalizer.ts`에서 raw/normalized/meaning으로 구분합니다. 확실한 오타만 조용히 정규화하며, 불확실한 고유명사는 AI Coach가 확인합니다.
+아이 입력은 `src/ai/childInputNormalizer.ts`에서 raw/normalized/meaning과 intent로 구분합니다. 확실한 오타만 조용히 정규화하며, 짧은 답은 직전 질문에 연결하고 SOCIAL/META_FEEDBACK은 작품 설정에 저장하지 않습니다.
 
 실제 OpenAI 이미지 요청은 원본 그림과 Creative Memory를 `server/imagePlan.ts`에서 KEEP/CHANGE 계획으로 구성합니다. 개발 모드에서는 Visualize 화면의 Image Generation Debug 패널에서 provider, prompt, image ID와 이전 image ID를 확인할 수 있습니다.
 
 ## Motion 구조
 
-`src/motion/types.ts`의 `AnimatedObject`와 `MotionSpec`이 객체와 움직임을 분리합니다. 현재 객체 영역은 mock이며, `src/motion/mockInterpreter.ts`가 “더 빨리”, “왼쪽으로”, “더 높이 뛰어” 같은 표현을 속도·방향·크기로 변환합니다. 이후 실제 객체 분리 및 AI interpreter로 교체할 수 있습니다.
+`src/motion/types.ts`의 `AnimatedObject`와 `MotionSpec`이 객체와 움직임을 분리합니다. 현재 객체 영역과 interpreter는 개발용 mock뿐이므로 실제 사용자 화면에는 객체명이나 제어 UI를 노출하지 않고 `움직임 기능 준비 중` 상태만 표시합니다. 실제 segmentation이 연결된 뒤 단계형 선택 UI로 교체합니다.
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.

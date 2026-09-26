@@ -99,6 +99,8 @@ SOCIAL과 META_FEEDBACK은 Claude 호출 전에 짧은 규칙 응답으로 처�
 | TEST 4: `어떤 색으로 할까?` → `노랑색` | **PASS** | ANSWER, `노란색` 문맥 응답, 금지 문구·강제 질문 없음 |
 | TEST 5: 토끼 그림 + Motion | **PASS** | 준비 상태만 노출, mock 객체명과 진입 버튼 미노출 |
 
+추가 회귀 테스트로 짧은 부정 답변 `아니`가 `rejectedIdeas`나 다른 작품 설정에 저장되지 않는 것도 확인한다.
+
 ### 실제 Claude 확인
 
 현재 Claude 모델(`claude-sonnet-5`)로 ANSWER 경로를 실제 호출했다.
@@ -123,7 +125,7 @@ SOCIAL과 META_FEEDBACK API 경로도 실제 호출해 `intent-rules` 응답, �
 
 ```text
 npm run test:ai
-11 passed / 0 failed
+12 passed / 0 failed
 
 npm run test:e2e -- e2e/art-motion-flow.spec.ts
 1 passed / 0 failed

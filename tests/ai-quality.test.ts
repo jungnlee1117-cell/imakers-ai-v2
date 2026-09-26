@@ -141,6 +141,18 @@ test('real flow 4: a short yellow answer responds in the prior color context', a
   assert.equal(response.question, '')
 })
 
+test('short negative answer is not stored as a rejected creative idea', async () => {
+  const memory = structuredClone(EMPTY_MEMORY)
+  memory.mainSubject = '토끼'
+  const response = await new MockAIProvider().respondToChild(
+    context('아니', memory, '토끼에게 날개를 달아볼까?'),
+  )
+  assert.equal(childInputNormalizer.normalize('아니', memory, '토끼에게 날개를 달아볼까?').intent, 'ANSWER')
+  assert.deepEqual(response.memory, memory)
+  assert.equal(response.question, '')
+  assert.doesNotMatch(response.text, /뜻으로 이해했어/)
+})
+
 test('real flow 5: unreleased motion UI exposes no mock segmentation objects', () => {
   const html = renderToStaticMarkup(createElement(MotionEntry))
   assert.match(html, /움직임 기능 준비 중/)
