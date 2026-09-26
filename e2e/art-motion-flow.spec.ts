@@ -45,11 +45,13 @@ test('draws with tactile tools and animates the finished artwork', async ({ page
 
   await page.getByRole('button', { name: /완료하고 AI에게 보여주기/ }).click()
   await expect(page.getByText('같이 상상하는 메이')).toBeVisible()
+  await expect(page.locator('.observing')).toBeHidden({ timeout: 5_000 })
+  await expect(page.locator('.coach-response p:not(.muted)')).toBeVisible()
 
   const reply = page.locator('#child-reply')
   for (const answer of ['공룡 자동차야', '엄마를 구하러 가', '용암 길을 지나가', '얼음 바퀴로 달려']) {
     await reply.fill(answer)
-    await reply.press('Enter')
+    await page.locator('.send-button').click()
     await expect(page.locator('.typing')).toBeVisible()
     await expect(page.locator('.typing')).toBeHidden({ timeout: 5_000 })
   }
