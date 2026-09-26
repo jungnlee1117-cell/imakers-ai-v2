@@ -11,12 +11,15 @@ import type {
 import type { CreativeMemory, DrawingAnalysis } from '../types/creative'
 
 class RemoteAIProvider implements AIProvider {
-  constructor(
-    private readonly kind: Exclude<ProviderKind, 'mock'>,
-    private readonly baseUrl: string,
-  ) {}
+  private readonly kind: Exclude<ProviderKind, 'mock'>
+  private readonly baseUrl: string
 
-  private async post<T>(path: string, body: unknown): Promise<T> {
+  constructor(kind: Exclude<ProviderKind, 'mock'>, baseUrl: string) {
+    this.kind = kind
+    this.baseUrl = baseUrl
+  }
+
+  private async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -40,12 +43,15 @@ class RemoteAIProvider implements AIProvider {
 }
 
 class RemoteImageProvider implements ImageProvider {
-  constructor(
-    private readonly kind: Exclude<ProviderKind, 'mock'>,
-    private readonly baseUrl: string,
-  ) {}
+  private readonly kind: Exclude<ProviderKind, 'mock'>
+  private readonly baseUrl: string
 
-  private async post(path: string, body: unknown) {
+  constructor(kind: Exclude<ProviderKind, 'mock'>, baseUrl: string) {
+    this.kind = kind
+    this.baseUrl = baseUrl
+  }
+
+  private async post(path: string, body: Record<string, unknown>) {
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -57,11 +63,11 @@ class RemoteImageProvider implements ImageProvider {
   }
 
   generateFromDrawing(input: GenerateImageInput) {
-    return this.post('/images/generate', input)
+    return this.post('/images/generate', { ...input })
   }
 
   editImage(input: EditImageInput) {
-    return this.post('/images/edit', input)
+    return this.post('/images/edit', { ...input })
   }
 }
 
