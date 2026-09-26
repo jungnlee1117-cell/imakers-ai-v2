@@ -37,7 +37,7 @@ const emptyMemory = {
 }
 
 const creationContext = {
-  drawingImageDataUrl: 'data:image/png;base64,provider-scenario',
+  drawingImageDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lK3Q6wAAAABJRU5ErkJggg==',
   creationState: 'exploring' as const,
 }
 

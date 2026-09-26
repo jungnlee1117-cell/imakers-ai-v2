@@ -57,12 +57,11 @@ test('scenario A: typo is normalized and meaning is stored without correction fe
   assert.equal(response.memory.understoodInputs[0].meaning, '돼지가 친구를 만나러 가는 중')
 })
 
-test('scenario B: moon ice-cream spaceship gets a project-specific question', async () => {
+test('scenario B: moon ice-cream spaceship gets a project-specific response without requiring a question', async () => {
   const provider = new MockAIProvider()
-  const pig = await provider.respondToChild(context('친쿵나테 가는 돼지야'))
   const spaceship = await provider.respondToChild(context('달에서 아이스크림 파는 우주선'))
   assert.match(spaceship.text, /달|아이스크림|우주선/)
-  assert.notEqual(spaceship.question, pig.question)
+  assert.equal(spaceship.question, '')
   assert.doesNotMatch(spaceship.text, /특별한 방법|어떤 방법을 떠올렸어|어떤 곳을 지나/)
 })
 

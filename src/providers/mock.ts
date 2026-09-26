@@ -128,6 +128,13 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   } else if (unsure) {
     reaction = '아직 딱 떠오르지 않는구나.'
     suggestion = '케이크나 풍선을 떠올려도 좋고, 완전히 다른 생각을 골라도 좋아.'
+  } else if (/돼지.*친구|친구.*돼지/.test(context.inputUnderstanding.meaning)) {
+    reaction = '아, 이 돼지는 친구를 만나러 가는 중이구나.'
+  } else if (/우주선.*달.*아이스크림/.test(context.inputUnderstanding.meaning)) {
+    reaction = '달에서 아이스크림을 파는 우주선이라니, 가게와 탈것이 하나인 거네.'
+    suggestion = '반짝이는 아이스크림처럼 네가 원하는 모습을 더 붙여도 좋아.'
+  } else if (/장난감.*가져|화가 난/.test(context.inputUnderstanding.meaning)) {
+    reaction = '친구가 장난감을 가져가서 속상하고 화가 난 거구나.'
   } else if (changedDecision && /우주/.test(text)) {
     reaction = '오, 계획이 바뀌었네. 이번에는 우주로 가는 거구나.'
   } else if (changedDecision && /웃/.test(text)) {

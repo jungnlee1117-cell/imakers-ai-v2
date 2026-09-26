@@ -1,8 +1,24 @@
 import { chromium, type Page } from 'playwright'
-import { childInputNormalizer, inferQuestionFocus } from '../src/ai/childInputNormalizer.js'
-import { EMPTY_MEMORY, type CreativeMemory, type DrawingAnalysis } from '../src/types/creative.js'
+import type { CreativeMemory, DrawingAnalysis } from '../server/contracts.js'
 
 const apiBase = process.env.TEST_API_BASE || 'http://127.0.0.1:43130/api'
+const EMPTY_MEMORY: CreativeMemory = {
+  mainSubject: '',
+  confirmedFacts: [],
+  rejectedIdeas: [],
+  supersededIdeas: [],
+  childPreferences: [],
+  mood: '밝고 따뜻한 분위기',
+  askedQuestions: [],
+  behaviors: [],
+  movementIdeas: [],
+  worldRules: [],
+  understoodInputs: [],
+  questionFocuses: [],
+  sceneDescription: '',
+  characterDescription: '',
+  childRequestedAdditions: [],
+}
 
 const svgs = {
   pig: `<g fill="none" stroke="#d94764" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
@@ -33,6 +49,47 @@ interface TurnResult {
   readyToCreate: boolean
   memory: CreativeMemory
   source: string
+}
+
+interface ConversationResponse {
+  reaction: string
+  connection: string
+  suggestion: string
+  question: string
+  memory: CreativeMemory
+  ready_to_visualize: boolean
+  provider: string
+  model: string
+}
+
+function inferQuestionFocus(text: string) {
+  const question = [...text.split(/(?<=[.!?？])\s*/)].reverse().find((part) => /[?？]/.test(part)) || ''
+  if (/색/.test(question)) return 'color'
+  if (/누구|친구/.test(question)) return 'relationship'
+  if (/어디|곳/.test(question)) return 'place'
+  if (/어떻게|뭐\s*하|무엇/.test(question)) return 'action'
+  return ''
+}
+
+function understand(raw: string, previousAIResponse: string) {
+  const normalized = raw.trim().replace(/\s+/g, ' ')
+  const intent = /고마워|안녕/.test(normalized)
+    ? 'SOCIAL'
+    : /^(?:몰라|모르겠어|응|아니)[.!?\s]*$/.test(normalized)
+      ? 'ANSWER'
+      : /^(?:아니|근데\s*사실)[,\s]+.+/.test(normalized)
+        ? 'CREATIVE_CONTENT'
+        : previousAIResponse && normalized.length <= 20
+          ? 'ANSWER'
+          : 'CREATIVE_CONTENT'
+  return {
+    raw,
+    normalized,
+    meaning: normalized,
+    intent,
+    confidence: 'high' as const,
+    needsClarification: false,
+  }
 }
 
 async function render(page: Page, svg: string) {
@@ -70,17 +127,8 @@ async function runScript(imageDataUrl: string, analysis: DrawingAnalysis, childL
     if (previousFocus && memory.questionFocuses.at(-1) !== previousFocus) {
       memory = { ...memory, questionFocuses: [...memory.questionFocuses, previousFocus].slice(-10) }
     }
-    const understanding = childInputNormalizer.normalize(childMessage, memory, previousAIResponse)
-    const payload = await post<{
-      reaction: string
-      connection: string
-      suggestion: string
-      question: string
-      memory: CreativeMemory
-      ready_to_visualize: boolean
-      provider: string
-      model: string
-    }>('/respond-to-child', {
+    const understanding = understand(childMessage, previousAIResponse)
+    const payload: ConversationResponse = await post<ConversationResponse>('/respond-to-child', {
       context: {
         childMessage,
         drawingImageDataUrl: imageDataUrl,
