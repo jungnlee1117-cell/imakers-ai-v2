@@ -1,6 +1,8 @@
 import React from 'react'
 import { Sparkles } from 'lucide-react'
 
+void React
+
 export function MotionEntry() {
   return (
     <section className="motion-entry" aria-label="움직임 기능 상태">
