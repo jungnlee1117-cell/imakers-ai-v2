@@ -9,6 +9,12 @@ import type {
 } from './types'
 
 const wait = (ms = 450) => new Promise((resolve) => globalThis.setTimeout(resolve, ms))
+const MOCK_OPENINGS = [
+  '가운데 큰 모양과 이어진 선들이 먼저 눈에 들어오네. 어떤 장면인지 같이 펼쳐보자.',
+  '여러 색이 한곳에 모여 있어서 움직이는 장면처럼 보여. 여기서는 무슨 일이 일어나고 있을까?',
+  '둥근 모양과 길게 뻗은 선이 재미있게 이어져 있네. 가장 마음에 드는 부분부터 이야기해줘.',
+]
+let mockOpeningIndex = 0
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))]
 
@@ -112,7 +118,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
     reaction = '달에서 아이스크림을 파는 우주선이라니, 가게와 탈것이 하나인 거네.'
     suggestion = '달에서는 녹지 않고 반짝이는 아이스크림도 어울릴 것 같아.'
     question = '달 손님들이 가장 좋아하는 맛은 어떤 맛일까?'
-    focus = 'world-detail'
+    focus = 'place'
   } else if (/장난감.*가져|화가 난/.test(context.inputUnderstanding.meaning)) {
     reaction = '친구가 장난감을 가져가서 속상하고 화가 난 마음이구나.'
     connection = `${memory.mainSubject || '그림 속 친구'}의 표정이 왜 그렇게 보였는지 이제 알 것 같아.`
@@ -122,7 +128,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
     reaction = `${context.inputUnderstanding.meaning}이라는 장면이 더 또렷해졌어.`
     connection = memory.mainSubject ? `${memory.mainSubject}의 모습과 지금 말한 배경이 이어진다.` : ''
     question = /선물/.test(text) ? '선물을 받은 친구는 어떤 표정을 지을까?' : ''
-    focus = question ? 'reaction' : ''
+    focus = question ? 'emotion' : ''
   } else {
     reaction = memory.mainSubject
       ? `좋아, 그 생각을 ${memory.mainSubject}의 장면에 자연스럽게 이어가볼게.`
@@ -136,10 +142,14 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
     question = '지금까지 말해준 모습을 그림으로 같이 펼쳐볼까?'
     focus = 'consent'
   }
+  if (question && focus && memory.questionFocuses.slice(-3).includes(focus)) {
+    question = ''
+    focus = ''
+  }
   const nextMemory = {
     ...memory,
     askedQuestions: question ? unique([...memory.askedQuestions, question]) : memory.askedQuestions,
-    questionFocuses: focus ? unique([...memory.questionFocuses, focus]) : memory.questionFocuses,
+    questionFocuses: focus ? [...memory.questionFocuses, focus].slice(-10) : memory.questionFocuses,
   }
   const parts = [reaction, connection, suggestion, question].filter(Boolean)
   return {
@@ -162,6 +172,8 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
 export class MockAIProvider implements AIProvider {
   async analyzeDrawing(_imageDataUrl: string): Promise<DrawingAnalysis> {
     await wait(900)
+    const openingMessage = MOCK_OPENINGS[mockOpeningIndex % MOCK_OPENINGS.length]
+    mockOpeningIndex += 1
     return {
       observations: [
         { description: '가운데에 크고 선명한 형태', confidence: 'high' },
@@ -169,8 +181,7 @@ export class MockAIProvider implements AIProvider {
         { description: '여러 색이 이어진 배경', confidence: 'medium' },
       ],
       uncertain: ['가운데 친구가 누구인지', '둥근 모양이 무엇인지', '어떤 일이 벌어지는 장면인지'],
-      openingMessage:
-        '가운데 있는 큰 친구가 제일 먼저 눈에 들어오네. 아래에는 동그란 모양도 보여. 내가 생각한 것과 다를 수 있으니까 궁금해—네가 만든 이 친구는 누구야?',
+      openingMessage,
     }
   }
 

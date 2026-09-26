@@ -87,6 +87,33 @@ function hasMechanicalUnderstanding(parts: string[]) {
   return /(?:라는|이라고)\s*뜻으로 이해했어/.test(parts.join(' '))
 }
 
+function normalizeQuestionFocus(focus: string, question: string) {
+  const aliases: Record<string, string> = {
+    reason: 'goal',
+    ability: 'action',
+    event: 'action',
+    'world-detail': 'place',
+    reaction: 'emotion',
+  }
+  const normalized = aliases[focus] || focus
+  const taxonomy = new Set([
+    'identity', 'color', 'place', 'action', 'emotion', 'relationship',
+    'object', 'goal', 'problem', 'change', 'consent',
+  ])
+  if (taxonomy.has(normalized)) return normalized
+  if (/색/.test(question)) return 'color'
+  if (/누구를\s*만나|친구|함께/.test(question)) return 'relationship'
+  if (/누구|이름/.test(question)) return 'identity'
+  if (/어디|장소|곳/.test(question)) return 'place'
+  if (/무엇을?\s*(?:들|가져)|뭘\s*(?:들|가져)/.test(question)) return 'object'
+  if (/기분|마음|느낌|표정/.test(question)) return 'emotion'
+  if (/문제|어려|곤란/.test(question)) return 'problem'
+  if (/왜|목표|하려|하고 싶/.test(question)) return 'goal'
+  if (/바뀌|달라|변하|추가|빼/.test(question)) return 'change'
+  if (/뭐\s*하|무엇을\s*하|어떻게|움직|가(?:는|고)/.test(question)) return 'action'
+  return ''
+}
+
 app.get('/api/providers', (_request, response) => {
   response.json({
     openai: { configured: Boolean(process.env.OPENAI_API_KEY) },
@@ -138,7 +165,10 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       result.data.suggestion,
       result.data.question,
     ])
-    if (similarQuestion || mechanicalResponse) {
+    const recentFocuses = body.context.memory.questionFocuses.slice(-3)
+    const initialFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
+    const repeatedFocus = Boolean(result.data.question && initialFocus && recentFocuses.includes(initialFocus))
+    if (similarQuestion || mechanicalResponse || repeatedFocus) {
       const instructions = [
         similarQuestion
           ? `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하므로 생략하거나 실제 문맥에 필요한 전혀 다른 방향으로 바꿔라.`
@@ -146,13 +176,18 @@ app.post('/api/respond-to-child', async (request, response, next) => {
         mechanicalResponse
           ? '"~라는 뜻으로 이해했어", "~이라고 이해했어" 같은 내부 해석 문구를 제거하고 직전 대화에 자연스럽게 반응하라.'
           : '',
+        repeatedFocus
+          ? `질문 focus "${initialFocus}"는 최근 3개 focus ${JSON.stringify(recentFocuses)}와 겹친다. 질문을 생략하거나 실제 문맥에 필요한 다른 focus로 바꿔라.`
+          : '',
       ].filter(Boolean).join(' ')
       result = await provider.respondToChild({
         ...body.context,
         retryInstruction: instructions,
       })
     }
-    const responseQuestion = intent === 'ANSWER' ? '' : result.data.question
+    const responseFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
+    const focusStillRepeated = Boolean(responseFocus && recentFocuses.includes(responseFocus))
+    const responseQuestion = intent === 'ANSWER' || focusStillRepeated ? '' : result.data.question
     const updates = result.data.memory_updates
     const previous = body.context.memory
     const memory = {
@@ -168,8 +203,8 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       understoodInputs: [...previous.understoodInputs, {
         ...body.context.inputUnderstanding,
       }],
-      questionFocuses: responseQuestion && result.data.question_focus
-        ? unique([...previous.questionFocuses, result.data.question_focus])
+      questionFocuses: responseQuestion && responseFocus
+        ? [...previous.questionFocuses, responseFocus].slice(-10)
         : previous.questionFocuses,
       sceneDescription: updates.scene_description || previous.sceneDescription,
       characterDescription: updates.character_description || previous.characterDescription,

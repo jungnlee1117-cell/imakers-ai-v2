@@ -49,7 +49,7 @@ export class OpenAIAdapter implements CloudAIProvider {
         {
           role: 'user',
           content: [
-            { type: 'input_text', text: '이 그림을 조심스럽게 관찰하고 첫 대화를 시작해줘.' },
+            { type: 'input_text', text: '이 그림의 명확한 특징을 구체적으로 보고 자연스럽게 첫 대화를 시작해줘.' },
             { type: 'input_image', image_url: imageDataUrl, detail: 'auto' },
           ],
         },

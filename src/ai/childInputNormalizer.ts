@@ -1,4 +1,4 @@
-import type { ChildIntent, CreativeMemory, UnderstoodInput } from '../types/creative'
+import type { ChildIntent, CreativeMemory, QuestionFocus, UnderstoodInput } from '../types/creative'
 
 export interface ChildInputNormalizer {
   normalize(rawText: string, memory: CreativeMemory, previousAIQuestion?: string): UnderstoodInput
@@ -26,6 +26,23 @@ export function classifyChildIntent(text: string, previousAIQuestion = ''): Chil
     || (previousAIQuestion && text.length <= 20 && !/[.!?].+/.test(text))
   ) return 'ANSWER'
   return 'CREATIVE_CONTENT'
+}
+
+export function inferQuestionFocus(text: string): QuestionFocus | '' {
+  const segments = text.split(/(?<=[.!?？])\s*/).filter(Boolean)
+  const question = [...segments].reverse().find((segment) => /[?？]|(?:까|니|어|지)\s*$/.test(segment.trim()))
+  if (!question) return ''
+  if (/색/.test(question)) return 'color'
+  if (/누구를\s*만나|친구|함께|사이/.test(question)) return 'relationship'
+  if (/누구|이름|정체/.test(question)) return 'identity'
+  if (/어디|장소|곳/.test(question)) return 'place'
+  if (/무엇을?\s*(?:들|가져)|뭘\s*(?:들|가져)|물건/.test(question)) return 'object'
+  if (/기분|마음|느낌|표정/.test(question)) return 'emotion'
+  if (/문제|어려|곤란|막혔/.test(question)) return 'problem'
+  if (/왜|목표|하려|하고 싶/.test(question)) return 'goal'
+  if (/바뀌|달라|변하|추가|빼/.test(question)) return 'change'
+  if (/뭐\s*하|무엇을\s*하|어떻게|움직|가(?:는|고)|행동/.test(question)) return 'action'
+  return ''
 }
 
 function inferMeaning(text: string, memory: CreativeMemory) {

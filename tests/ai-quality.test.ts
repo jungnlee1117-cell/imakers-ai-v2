@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { childInputNormalizer } from '../src/ai/childInputNormalizer'
+import { childInputNormalizer, inferQuestionFocus } from '../src/ai/childInputNormalizer'
 import { MotionEntry } from '../src/components/MotionEntry'
 import { MockAIProvider } from '../src/providers/mock'
 import type { ChildResponseContext } from '../src/providers/types'
@@ -151,6 +151,29 @@ test('short negative answer is not stored as a rejected creative idea', async ()
   assert.deepEqual(response.memory, memory)
   assert.equal(response.question, '')
   assert.doesNotMatch(response.text, /뜻으로 이해했어/)
+})
+
+test('question focus uses the last actual question and avoids a recent repeat', async () => {
+  assert.equal(inferQuestionFocus('파란색 좋다. 이 돼지는 어디로 가는 중이야?'), 'place')
+  const memory = structuredClone(EMPTY_MEMORY)
+  memory.questionFocuses = ['color', 'emotion', 'identity']
+  const response = await new MockAIProvider().respondToChild(context('민지가 달려', memory, ''))
+  assert.equal(response.question, '')
+  assert.deepEqual(response.memory.questionFocuses, memory.questionFocuses)
+})
+
+test('mock opening messages vary and do not force identity confirmation', async () => {
+  const provider = new MockAIProvider()
+  const openings = await Promise.all([
+    provider.analyzeDrawing('data:image/png;base64,a'),
+    provider.analyzeDrawing('data:image/png;base64,a'),
+    provider.analyzeDrawing('data:image/png;base64,a'),
+  ])
+  const messages = openings.map((item) => item.openingMessage)
+  assert.equal(new Set(messages).size, 3)
+  for (const message of messages) {
+    assert.doesNotMatch(message, /내가 다르게 봤을 수도|이 친구는 누구야/)
+  }
 })
 
 test('real flow 5: unreleased motion UI exposes no mock segmentation objects', () => {

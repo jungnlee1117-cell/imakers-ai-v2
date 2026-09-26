@@ -4,6 +4,18 @@ export type ResponseElement = 'REACT' | 'CONNECT' | 'EXPAND' | 'SUGGEST' | 'SUPP
 
 export type UnderstandingConfidence = 'high' | 'medium' | 'low'
 export type ChildIntent = 'CREATIVE_CONTENT' | 'ANSWER' | 'SOCIAL' | 'META_FEEDBACK' | 'COMMAND'
+export type QuestionFocus =
+  | 'identity'
+  | 'color'
+  | 'place'
+  | 'action'
+  | 'emotion'
+  | 'relationship'
+  | 'object'
+  | 'goal'
+  | 'problem'
+  | 'change'
+  | 'consent'
 
 export interface UnderstoodInput {
   raw: string

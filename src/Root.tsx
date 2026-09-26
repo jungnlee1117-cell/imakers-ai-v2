@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { DrawingStudio } from './components/DrawingStudio'
 import { MotionEntry } from './components/MotionEntry'
-import { childInputNormalizer } from './ai/childInputNormalizer'
+import { childInputNormalizer, inferQuestionFocus } from './ai/childInputNormalizer'
 import { createProviderClients } from './providers'
 import type { AIProvider, ImageProvider, ImageProviderKind, ProviderKind } from './providers'
 import type { ConversationTurn, CreativeMemory, DrawingAnalysis, ImageVersion, StudioStep } from './types/creative'
@@ -127,7 +127,11 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
     const previousAIQuestion = [...turns].reverse().find((turn) => turn.speaker === 'ai')?.text
       || memory.askedQuestions.at(-1)
       || ''
-    const understanding = childInputNormalizer.normalize(childMessage, memory, previousAIQuestion)
+    const previousFocus = inferQuestionFocus(previousAIQuestion)
+    const contextualMemory = previousFocus && memory.questionFocuses.at(-1) !== previousFocus
+      ? { ...memory, questionFocuses: [...memory.questionFocuses, previousFocus].slice(-10) }
+      : memory
+    const understanding = childInputNormalizer.normalize(childMessage, contextualMemory, previousAIQuestion)
     setTurns((items) => [...items, { id: crypto.randomUUID(), speaker: 'child', text: childMessage }])
     setInput('')
     setThinking(true)
@@ -137,7 +141,7 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
         rawChildInput: childMessage,
         normalizedChildInput: understanding.normalized,
         inputUnderstanding: understanding,
-        memory,
+        memory: contextualMemory,
         turnCount: turns.filter((turn) => turn.speaker === 'child').length,
         drawingAnalysis: analysis,
         conversationHistory: turns.map(({ speaker, text }) => ({ speaker, text })),
