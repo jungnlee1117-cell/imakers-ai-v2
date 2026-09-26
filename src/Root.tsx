@@ -139,6 +139,8 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
     try {
       const response = await aiProvider.respondToChild({
         childMessage,
+        drawingImageDataUrl: drawing,
+        creationState: ready ? 'ready-to-create' : 'exploring',
         rawChildInput: childMessage,
         normalizedChildInput: understanding.normalized,
         inputUnderstanding: understanding,

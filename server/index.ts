@@ -28,6 +28,8 @@ const analyzeRequestSchema = providerRequestSchema.extend({
 const respondRequestSchema = providerRequestSchema.extend({
   context: z.object({
     childMessage: z.string().min(1).max(1000),
+    drawingImageDataUrl: z.string().startsWith('data:image/'),
+    creationState: z.enum(['exploring', 'ready-to-create', 'editing']),
     rawChildInput: z.string().min(1).max(1000),
     normalizedChildInput: z.string().min(1).max(1000),
     inputUnderstanding: z.object({
@@ -231,13 +233,23 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     }
     const responseFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const focusStillRepeated = Boolean(responseFocus && recentFocuses.includes(responseFocus))
-    const responseQuestion = intent === 'ANSWER' || focusStillRepeated ? '' : result.data.question
+    const answeredColorQuestion = intent === 'ANSWER' && recentFocuses.includes('color')
+    const responseQuestion = result.data.planner.shouldAskQuestion && !answeredColorQuestion && !focusStillRepeated
+      ? result.data.question
+      : ''
     const updates = result.data.memory_updates
     const previous = body.context.memory
+    const supersededFacts = unique(updates.superseded_facts)
+    const activeConfirmedFacts = previous.confirmedFacts.filter(
+      (fact) => !supersededFacts.some((superseded) => (
+        fact === superseded || fact.includes(superseded) || superseded.includes(fact)
+      )),
+    )
     const memory = {
       mainSubject: updates.main_subject || previous.mainSubject,
-      confirmedFacts: unique([...previous.confirmedFacts, ...updates.confirmed_facts]),
+      confirmedFacts: unique([...activeConfirmedFacts, ...updates.confirmed_facts]),
       rejectedIdeas: unique([...previous.rejectedIdeas, ...updates.rejected_ideas]),
+      supersededIdeas: unique([...previous.supersededIdeas, ...supersededFacts]),
       childPreferences: unique([...previous.childPreferences, ...updates.preferences]),
       mood: updates.mood || previous.mood,
       askedQuestions: unique([...previous.askedQuestions, responseQuestion]),
@@ -261,7 +273,7 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       question: responseQuestion,
       memory_updates: result.data.memory_updates,
       memory,
-      ready_to_visualize: result.data.ready_to_visualize,
+      ready_to_visualize: result.data.planner.shouldCreateNow,
       provider: body.provider,
       model: result.model,
       latency_ms: result.latencyMs,

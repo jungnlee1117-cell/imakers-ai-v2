@@ -23,6 +23,7 @@ const baseMemory: CreativeMemory = {
   mainSubject: 'a friendly round pink pig',
   confirmedFacts: ['the pig is on a forest path', 'the pig is wearing a clearly visible red backpack', 'the pig is holding a clearly visible wrapped gift for a friend'],
   rejectedIdeas: [],
+  supersededIdeas: [],
   childPreferences: ['a polished children’s storybook illustration with a clear main character and props'],
   mood: 'bright daytime with a warm and cheerful atmosphere',
   askedQuestions: [],

@@ -31,6 +31,8 @@ function context(
   const understanding = childInputNormalizer.normalize(raw, memory, previousAIQuestion)
   return {
     childMessage: raw,
+    drawingImageDataUrl: 'data:image/png;base64,test',
+    creationState: 'exploring',
     rawChildInput: raw,
     normalizedChildInput: understanding.normalized,
     inputUnderstanding: understanding,
@@ -195,6 +197,37 @@ test('visual context is structured and changes with a new image version', async 
   assert.ok(Array.isArray(first.likelySubjects))
   assert.ok(Array.isArray(first.objects))
   assert.ok(Array.isArray(first.uncertainties))
+})
+
+test('next-best response accepts a changed direction and supersedes the old decision', async () => {
+  const provider = new MockAIProvider()
+  const memory = structuredClone(EMPTY_MEMORY)
+  memory.mainSubject = '돼지'
+  memory.confirmedFacts = ['친구를 만나러 가는 중', '선물이 있다']
+  memory.sceneDescription = '친구를 만나러 가는 길'
+  const response = await provider.respondToChild(context('아니, 우주로 갈래', memory, ''))
+  assert.match(response.text, /계획이 바뀌|우주/)
+  assert.ok(response.memory.supersededIdeas.some((idea) => /친구.*만나/.test(idea)))
+  assert.ok(response.memory.confirmedFacts.some((fact) => /우주/.test(fact)))
+  assert.ok(response.memory.confirmedFacts.some((fact) => /선물/.test(fact)))
+  assert.equal(response.question, '')
+})
+
+test('unknown answer offers small choices without repeating the question', async () => {
+  const response = await new MockAIProvider().respondToChild(
+    context('몰라', structuredClone(EMPTY_MEMORY), '우주에서 누구를 만날까?'),
+  )
+  assert.match(response.text, /케이크|풍선/)
+  assert.match(response.text, /다른 생각/)
+  assert.equal(response.question, '')
+})
+
+test('create request transitions immediately without a turn-count threshold', async () => {
+  const response = await new MockAIProvider().respondToChild(
+    context('이제 만들어줘', structuredClone(EMPTY_MEMORY), ''),
+  )
+  assert.equal(response.readyToVisualize, true)
+  assert.match(response.text, /그림으로|펼쳐/)
 })
 
 test('real flow 5: unreleased motion UI exposes no mock segmentation objects', () => {

@@ -54,6 +54,7 @@ export interface CreativeMemory {
   mainSubject: string
   confirmedFacts: string[]
   rejectedIdeas: string[]
+  supersededIdeas: string[]
   childPreferences: string[]
   mood: string
   askedQuestions: string[]
@@ -95,6 +96,7 @@ export const EMPTY_MEMORY: CreativeMemory = {
   mainSubject: '',
   confirmedFacts: [],
   rejectedIdeas: [],
+  supersededIdeas: [],
   childPreferences: [],
   mood: '밝고 따뜻한 분위기',
   askedQuestions: [],

@@ -14,6 +14,7 @@
     "test:providers": "tsx scripts/compare-providers.ts",
     "test:fal-images": "tsx scripts/test-fal-images.ts",
     "test:vision-grounding": "tsx scripts/test-vision-grounding.ts",
+    "test:natural-conversation": "tsx scripts/test-natural-conversation.ts",
     "test:e2e": "playwright test",
     "test:ai": "tsx --test tests/*.test.ts"
   },

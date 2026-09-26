@@ -20,7 +20,8 @@ export function classifyChildIntent(text: string, previousAIQuestion = ''): Chil
     /대화.*(?:자연스럽지|어색|이상)|왜\s*(?:자꾸|계속).*(?:물어|말해|반복)|(?:똑같|같은).*(?:질문|말)|그림이\s*이상|^다시\s*해\s*줘$/.test(text)
   ) return 'META_FEEDBACK'
   if (/^(?:고마워|감사해|안녕|반가워|좋아|재밌어|잘했어)[!.~😊🙂\s]*$/u.test(text)) return 'SOCIAL'
-  if (/(?:크게|작게|바꿔|해\s*줘|해줘|없애|지워|빼\s*줘|빼줘|추가해|그려줘)/.test(text)) return 'COMMAND'
+  if (/(?:크게|작게|바꿔|해\s*줘|해줘|없애|지워|빼\s*줘|빼줘|추가해|그려줘|만들어줘|이제\s*해\s*보자)/.test(text)) return 'COMMAND'
+  if (/^(?:아니|근데\s*사실)[,\s]+.+/.test(text)) return 'CREATIVE_CONTENT'
   if (
     /^(?:응|네|아니|싫어|몰라|모르겠어)[!.~\s]*$/.test(text)
     || (previousAIQuestion && text.length <= 20 && !/[.!?].+/.test(text))

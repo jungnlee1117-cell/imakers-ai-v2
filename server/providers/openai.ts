@@ -71,7 +71,13 @@ export class OpenAIAdapter implements CloudAIProvider {
       model: this.textModel,
       input: [
         { role: 'system', content: coachSystemPrompt(input.memory) },
-        { role: 'user', content: coachUserPrompt(input) },
+        {
+          role: 'user',
+          content: [
+            { type: 'input_image', image_url: input.drawingImageDataUrl, detail: 'auto' },
+            { type: 'input_text', text: coachUserPrompt(input) },
+          ],
+        },
       ],
       text: { format: zodTextFormat(coachResponseSchema, 'coach_response') },
     })

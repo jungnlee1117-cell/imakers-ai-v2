@@ -2,6 +2,8 @@ import type { CreativeMemory, DrawingAnalysis, ResponseElement, UnderstoodInput 
 
 export interface ChildResponseContext {
   childMessage: string
+  drawingImageDataUrl: string
+  creationState: 'exploring' | 'ready-to-create' | 'editing'
   rawChildInput: string
   normalizedChildInput: string
   inputUnderstanding: UnderstoodInput

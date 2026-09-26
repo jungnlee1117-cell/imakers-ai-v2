@@ -7,6 +7,7 @@ export const creativeMemorySchema = z.object({
   mainSubject: z.string().default(''),
   confirmedFacts: z.array(z.string()).default([]),
   rejectedIdeas: z.array(z.string()).default([]),
+  supersededIdeas: z.array(z.string()).default([]),
   childPreferences: z.array(z.string()).default([]),
   mood: z.string().default('밝고 따뜻한 분위기'),
   askedQuestions: z.array(z.string()).default([]),
@@ -51,6 +52,19 @@ export const drawingAnalysisSchema = z.object({
 })
 
 export const coachResponseSchema = z.object({
+  planner: z.object({
+    understoodNow: z.string(),
+    changedDecision: z.string(),
+    unresolvedThing: z.string(),
+    usefulObservation: z.string(),
+    responseAction: z.enum([
+      'REACT', 'ACKNOWLEDGE', 'CONNECT', 'OBSERVE', 'IMAGINE', 'SUGGEST',
+      'CLARIFY', 'OFFER_CHOICES', 'ASK', 'CREATE', 'EDIT', 'WAIT',
+    ]),
+    shouldAskQuestion: z.boolean(),
+    shouldOfferChoices: z.boolean(),
+    shouldCreateNow: z.boolean(),
+  }),
   reaction: z.string(),
   connection: z.string(),
   suggestion: z.string(),
@@ -67,6 +81,7 @@ export const coachResponseSchema = z.object({
     main_subject: z.string().optional().default(''),
     confirmed_facts: z.array(z.string()),
     rejected_ideas: z.array(z.string()),
+    superseded_facts: z.array(z.string()).default([]),
     preferences: z.array(z.string()),
     behaviors: z.array(z.string()),
     movement_ideas: z.array(z.string()),
@@ -93,6 +108,8 @@ export interface ConversationItem {
 
 export interface RespondInput {
   childMessage: string
+  drawingImageDataUrl: string
+  creationState: 'exploring' | 'ready-to-create' | 'editing'
   rawChildInput?: string
   normalizedChildInput?: string
   inputUnderstanding?: {

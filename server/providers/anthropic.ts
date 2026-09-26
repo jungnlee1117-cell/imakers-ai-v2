@@ -85,12 +85,16 @@ export class AnthropicAdapter implements CloudAIProvider {
 
   async respondToChild(input: RespondInput) {
     const start = performance.now()
+    const image = parseDataUrl(input.drawingImageDataUrl)
     const result = await this.structured(
       coachResponseSchema,
       'submit_coach_response',
       '어린이에게 보낼 구조화된 코치 응답과 기억 업데이트를 제출합니다.',
       coachSystemPrompt(input.memory),
-      coachUserPrompt(input),
+      [
+        { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
+        { type: 'text', text: coachUserPrompt(input) },
+      ],
     )
     return { data: result.data, model: this.textModel, latencyMs: elapsed(start), usage: result.usage }
   }
