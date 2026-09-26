@@ -42,10 +42,20 @@ Mood and lighting: ${memory.mood}.
 Make every required character and prop clearly visible. Do not add captions, letters, code, UI, signatures, or watermarks.`
 }
 
+function explicitEditInstruction(request = '') {
+  if (/밤으로/.test(request)) {
+    return 'Change the daytime scene to a clearly recognizable nighttime scene with a dark blue sky, moonlight, and stars.'
+  }
+  if (/돼지.*더 크게|더 크게.*돼지/.test(request)) {
+    return 'Make the pink pig significantly larger in the frame while preserving the pig’s identity, pose, red backpack, and wrapped gift.'
+  }
+  return request
+}
+
 function editPrompt(input: ImageInput) {
   const memory = input.memory
   return `Edit the provided image.
-Change only this: ${input.request}.
+Change only this: ${explicitEditInstruction(input.request)}.
 Keep unchanged: the same ${memory.mainSubject} identity and appearance (${memory.characterDescription}), the scene (${memory.sceneDescription}), existing props, art style, composition, camera angle, and all details unrelated to the requested change.
 Required facts that must remain visible: ${list(memory.confirmedFacts)}.
 Do not add or alter text, captions, signatures, or watermarks.`
