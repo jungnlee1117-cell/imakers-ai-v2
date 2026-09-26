@@ -3,11 +3,13 @@ export type StudioStep = 'start' | 'draw' | 'conversation' | 'visualize' | 'moti
 export type ResponseElement = 'REACT' | 'CONNECT' | 'EXPAND' | 'SUGGEST' | 'SUPPORT'
 
 export type UnderstandingConfidence = 'high' | 'medium' | 'low'
+export type ChildIntent = 'CREATIVE_CONTENT' | 'ANSWER' | 'SOCIAL' | 'META_FEEDBACK' | 'COMMAND'
 
 export interface UnderstoodInput {
   raw: string
   normalized: string
   meaning: string
+  intent: ChildIntent
   confidence: UnderstandingConfidence
   needsClarification: boolean
 }

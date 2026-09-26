@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import { z } from 'zod'
 import {
+  childIntentSchema,
   creativeMemorySchema,
   drawingAnalysisSchema,
   providerKindSchema,
@@ -32,6 +33,7 @@ const respondRequestSchema = providerRequestSchema.extend({
       raw: z.string(),
       normalized: z.string(),
       meaning: z.string(),
+      intent: childIntentSchema,
       confidence: z.enum(['high', 'medium', 'low']),
       needsClarification: z.boolean(),
     }),
@@ -103,6 +105,24 @@ app.post('/api/analyze-drawing', async (request, response, next) => {
 app.post('/api/respond-to-child', async (request, response, next) => {
   try {
     const body = respondRequestSchema.parse(request.body)
+    const intent = body.context.inputUnderstanding.intent
+    if (intent === 'SOCIAL' || intent === 'META_FEEDBACK') {
+      const reaction = intent === 'SOCIAL'
+        ? '나도 같이 만들어서 재밌었어 😊'
+        : '맞아, 방금 대화가 조금 어색했네. 같은 말을 반복하지 않고 자연스럽게 이어가볼게.'
+      response.json({
+        reaction,
+        connection: '',
+        suggestion: '',
+        question: '',
+        memory: body.context.memory,
+        ready_to_visualize: false,
+        provider: 'intent-rules',
+        model: 'local-intent-rules',
+        latency_ms: 0,
+      })
+      return
+    }
     const provider = getCloudProvider(body.provider)
     let result = await provider.respondToChild(body.context)
     const similarQuestion = body.context.previousQuestions.find(
@@ -127,11 +147,7 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       movementIdeas: unique([...previous.movementIdeas, ...updates.movement_ideas]),
       worldRules: unique([...previous.worldRules, ...updates.world_rules]),
       understoodInputs: [...previous.understoodInputs, {
-        raw: result.data.input_understanding.raw,
-        normalized: result.data.input_understanding.normalized,
-        meaning: result.data.input_understanding.meaning,
-        confidence: result.data.input_understanding.confidence,
-        needsClarification: result.data.input_understanding.needs_clarification,
+        ...body.context.inputUnderstanding,
       }],
       questionFocuses: result.data.question_focus
         ? unique([...previous.questionFocuses, result.data.question_focus])

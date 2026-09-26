@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const providerKindSchema = z.enum(['openai', 'anthropic', 'fal', 'mock'])
+export const childIntentSchema = z.enum(['CREATIVE_CONTENT', 'ANSWER', 'SOCIAL', 'META_FEEDBACK', 'COMMAND'])
 
 export const creativeMemorySchema = z.object({
   mainSubject: z.string().default(''),
@@ -16,6 +17,7 @@ export const creativeMemorySchema = z.object({
     raw: z.string(),
     normalized: z.string(),
     meaning: z.string(),
+    intent: childIntentSchema.default('CREATIVE_CONTENT'),
     confidence: z.enum(['high', 'medium', 'low']),
     needsClarification: z.boolean(),
   })).default([]),
@@ -83,6 +85,7 @@ export interface RespondInput {
     raw: string
     normalized: string
     meaning: string
+    intent: z.infer<typeof childIntentSchema>
     confidence: 'high' | 'medium' | 'low'
     needsClarification: boolean
   }

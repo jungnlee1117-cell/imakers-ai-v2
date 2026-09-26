@@ -1,10 +1,12 @@
-import type { CreativeMemory, UnderstoodInput } from '../types/creative'
+import type { ChildIntent, CreativeMemory, UnderstoodInput } from '../types/creative'
 
 export interface ChildInputNormalizer {
-  normalize(rawText: string, memory: CreativeMemory): UnderstoodInput
+  normalize(rawText: string, memory: CreativeMemory, previousAIQuestion?: string): UnderstoodInput
 }
 
 const SAFE_CORRECTIONS: Array<[RegExp, string]> = [
+  [/파랑색/g, '파란색'],
+  [/노랑색/g, '노란색'],
   [/친쿵나테/g, '친구한테'],
   [/친구한태/g, '친구한테'],
   [/엄마 구하로/g, '엄마 구하러'],
@@ -12,6 +14,19 @@ const SAFE_CORRECTIONS: Array<[RegExp, string]> = [
 ]
 
 const KNOWN_SUBJECTS = ['돼지', '공룡', '로봇', '우주선', '고래', '펭귄', '자동차', '엄마', '친구', '용', '거북이']
+
+export function classifyChildIntent(text: string, previousAIQuestion = ''): ChildIntent {
+  if (
+    /대화.*(?:자연스럽지|어색|이상)|왜\s*(?:자꾸|계속).*(?:물어|말해|반복)|(?:똑같|같은).*(?:질문|말)|그림이\s*이상|^다시\s*해\s*줘$/.test(text)
+  ) return 'META_FEEDBACK'
+  if (/^(?:고마워|감사해|안녕|반가워|좋아|재밌어|잘했어)[!.~😊🙂\s]*$/.test(text)) return 'SOCIAL'
+  if (/(?:크게|작게|바꿔|해\s*줘|해줘|없애|지워|빼\s*줘|빼줘|추가해|그려줘)/.test(text)) return 'COMMAND'
+  if (
+    /^(?:응|네|아니|싫어|몰라|모르겠어)[!.~\s]*$/.test(text)
+    || (previousAIQuestion && text.length <= 20 && !/[.!?].+/.test(text))
+  ) return 'ANSWER'
+  return 'CREATIVE_CONTENT'
+}
 
 function inferMeaning(text: string, memory: CreativeMemory) {
   const friendTrip = text.match(/친구한테\s*가는\s*(.+?)(?:이야|야)?$/)
@@ -33,18 +48,20 @@ function hasUnknownNamePattern(text: string) {
 }
 
 export class ContextualChildInputNormalizer implements ChildInputNormalizer {
-  normalize(rawText: string, memory: CreativeMemory): UnderstoodInput {
+  normalize(rawText: string, memory: CreativeMemory, previousAIQuestion = ''): UnderstoodInput {
     const raw = rawText.trim().replace(/\s+/g, ' ')
     let normalized = raw
     for (const [pattern, replacement] of SAFE_CORRECTIONS) {
       normalized = normalized.replace(pattern, replacement)
     }
     const corrected = normalized !== raw
-    const ambiguous = hasUnknownNamePattern(normalized)
+    const intent = classifyChildIntent(normalized, previousAIQuestion)
+    const ambiguous = intent === 'CREATIVE_CONTENT' && hasUnknownNamePattern(normalized)
     return {
       raw,
       normalized,
       meaning: inferMeaning(normalized, memory),
+      intent,
       confidence: ambiguous ? 'low' : corrected ? 'high' : 'medium',
       needsClarification: ambiguous,
     }

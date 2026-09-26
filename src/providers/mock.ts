@@ -21,6 +21,9 @@ function inferSubject(meaning: string, current: string) {
 
 function updateMemory(context: ChildResponseContext): CreativeMemory {
   const { inputUnderstanding, memory } = context
+  if (inputUnderstanding.intent === 'SOCIAL' || inputUnderstanding.intent === 'META_FEEDBACK') {
+    return memory
+  }
   const text = inputUnderstanding.normalized
   const next = {
     ...memory,
@@ -63,6 +66,7 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
 
 function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AIResponse {
   const text = context.normalizedChildInput
+  const intent = context.inputUnderstanding.intent
   const rejected = /싫|아니|빼|없애|안 해|하지 마/.test(text)
   const unsure = /모르|글쎄|음\.\.\.|몰라/.test(text)
   let reaction = ''
@@ -71,7 +75,17 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   let question = ''
   let focus = ''
 
-  if (rejected) {
+  if (intent === 'SOCIAL') {
+    reaction = '나도 같이 만들어서 재밌었어 😊'
+  } else if (intent === 'META_FEEDBACK') {
+    reaction = '맞아, 방금 대화가 조금 어색했네. 같은 말을 반복하지 않고 자연스럽게 이어가볼게.'
+  } else if (intent === 'ANSWER' && /색/.test(context.previousAIQuestion)) {
+    if (/파란색/.test(text)) reaction = '파란색 좋다. 그럼 이 부분을 파란색으로 해보자.'
+    else if (/노란색/.test(text)) reaction = '노란색이구나. 밝고 따뜻한 느낌이 떠오르네.'
+    else reaction = `${text}이구나. 방금 이야기한 부분에 그 색을 이어볼게.`
+  } else if (intent === 'ANSWER' && /^(응|네)[!.~\s]*$/.test(text)) {
+    reaction = '응, 좋아. 그렇게 이어가보자.'
+  } else if (rejected) {
     reaction = '좋아, 그 생각은 빼자. 네가 정한 모습이 더 중요해.'
   } else if (context.inputUnderstanding.needsClarification) {
     const name = text.match(/^([가-힣]{2,4})[이가]\s/)?.[1] || '그 말'
@@ -102,15 +116,14 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
     question = /선물/.test(text) ? '선물을 받은 친구는 어떤 표정을 지을까?' : ''
     focus = question ? 'reaction' : ''
   } else {
-    reaction = `${context.inputUnderstanding.meaning}이라는 뜻으로 이해했어.`
+    reaction = memory.mainSubject
+      ? `좋아, 그 생각을 ${memory.mainSubject}의 장면에 자연스럽게 이어가볼게.`
+      : '좋아, 그 생각을 그림에 자연스럽게 이어가볼게.'
     connection = memory.mainSubject ? `아까 이야기한 ${memory.mainSubject}와도 이어지네.` : ''
-    if (context.turnCount < 2) {
-      question = '이 장면에서 주인공의 마음은 어떤 색에 가까울까?'
-      focus = 'emotion'
-    }
   }
 
-  const readyToVisualize = context.turnCount >= 3 || memory.confirmedFacts.length >= 4
+  const conversationalIntent = intent === 'SOCIAL' || intent === 'META_FEEDBACK'
+  const readyToVisualize = !conversationalIntent && (context.turnCount >= 3 || memory.confirmedFacts.length >= 4)
   if (readyToVisualize && !question) {
     question = '지금까지 말해준 모습을 그림으로 같이 펼쳐볼까?'
     focus = 'consent'

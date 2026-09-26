@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, ImagePlus,
   LoaderCircle, Mic, Paintbrush, Send, Sparkles,
-  Play,
 } from 'lucide-react'
 import { DrawingStudio } from './components/DrawingStudio'
-import { MotionStudio } from './components/MotionStudio'
+import { MotionEntry } from './components/MotionEntry'
 import { childInputNormalizer } from './ai/childInputNormalizer'
 import { createProviderClients } from './providers'
 import type { AIProvider, ImageProvider, ImageProviderKind, ProviderKind } from './providers'
@@ -125,7 +124,10 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   const reply = async () => {
     const childMessage = input.trim()
     if (!childMessage || !analysis || thinking) return
-    const understanding = childInputNormalizer.normalize(childMessage, memory)
+    const previousAIQuestion = [...turns].reverse().find((turn) => turn.speaker === 'ai')?.text
+      || memory.askedQuestions.at(-1)
+      || ''
+    const understanding = childInputNormalizer.normalize(childMessage, memory, previousAIQuestion)
     setTurns((items) => [...items, { id: crypto.randomUUID(), speaker: 'child', text: childMessage }])
     setInput('')
     setThinking(true)
@@ -139,7 +141,7 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
         turnCount: turns.filter((turn) => turn.speaker === 'child').length,
         drawingAnalysis: analysis,
         conversationHistory: turns.map(({ speaker, text }) => ({ speaker, text })),
-        previousAIQuestion: memory.askedQuestions.at(-1) || '',
+        previousAIQuestion,
         previousQuestions: memory.askedQuestions,
       })
       setMemory(response.memory)
@@ -243,12 +245,11 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   )
 }
 
-function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
+function Visualize({ drawing, memory, onBack, imageProvider }: {
   drawing: string
   memory: CreativeMemory
   onBack: () => void
   imageProvider: ImageProvider
-  onMotion: (image: string) => void
 }) {
   const [versions, setVersions] = useState<ImageVersion[]>([
     {
@@ -398,10 +399,7 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
           </dl>
         </details>
       )}
-      <section className="motion-entry">
-        <div><span><Play size={16} fill="currentColor" /></span><p><strong>이제 그림에 움직임을 넣어볼까?</strong><small>게임이 아니라, 네 그림이 살아나는 모습을 먼저 볼 거야.</small></p></div>
-        <button onClick={() => onMotion(current.imageUrl)}>내 그림 움직여보기 <span>→</span></button>
-      </section>
+      <MotionEntry />
     </main>
   )
 }
@@ -409,7 +407,6 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
 export default function Root() {
   const [step, setStep] = useState<StudioStep>('start')
   const [drawing, setDrawing] = useState('')
-  const [motionImage, setMotionImage] = useState('')
   const [memory, setMemory] = useState<CreativeMemory>(EMPTY_MEMORY)
   const [provider, setProvider] = useState<ProviderKind>(() => {
     const saved = localStorage.getItem('imakers-provider')
@@ -442,10 +439,7 @@ export default function Root() {
     return <Conversation drawing={drawing} aiProvider={clients.aiProvider} onBack={() => setStep('start')} onVisualize={(nextMemory) => { setMemory(nextMemory); setStep('visualize') }} />
   }
   if (step === 'visualize' && drawing) {
-    return <Visualize drawing={drawing} memory={memory} imageProvider={clients.imageProvider} onBack={() => setStep('conversation')} onMotion={(image) => { setMotionImage(image); setStep('motion') }} />
-  }
-  if (step === 'motion' && motionImage) {
-    return <MotionStudio image={motionImage} memory={memory} onBack={() => setStep('visualize')} />
+    return <Visualize drawing={drawing} memory={memory} imageProvider={clients.imageProvider} onBack={() => setStep('conversation')} />
   }
   return <StartScreen onDraw={() => setStep('draw')} onUpload={useDrawing} provider={provider} onProviderChange={changeProvider} imageProviderKind={imageProviderKind} onImageProviderChange={changeImageProvider} />
 }

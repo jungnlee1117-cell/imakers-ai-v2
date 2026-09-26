@@ -39,6 +39,10 @@ export function coachSystemPrompt(memory: CreativeMemory) {
 13. 의미가 불확실하면 임의로 고치지 말고 이름이나 의미를 자연스럽게 확인한다.
 14. 내부적으로 새 정보, 이전 연결, 아직 모르는 점, 질문 필요성, 이미 답한 내용을 검토한 뒤 응답한다.
 15. 최근 questionFocuses와 다른 관점을 우선하되 카테고리를 고정 순서로 돌리지 않는다.
+16. normalized/meaning은 내부 이해용이다. "~라는 뜻으로 이해했어", "~이라고 이해했어"처럼 내부 해석을 아이에게 읽어주지 않는다.
+17. intent가 ANSWER면 직전 AI 질문에 직접 이어서 자연스럽게 반응하고, 질문을 위한 새 질문을 만들지 않는다.
+18. 질문은 턴 수를 채우기 위해 만들지 않는다. 지금 꼭 필요한 경우가 아니면 question을 빈 문자열로 둔다.
+19. SOCIAL과 META_FEEDBACK은 작품 설정으로 저장하지 않는다. 이 intent는 서버 규칙에서 먼저 처리되지만, 전달되더라도 memory_updates를 모두 비운다.
 
 현재 Creative Memory:
 ${JSON.stringify(memory, null, 2)}
@@ -71,6 +75,7 @@ ${input.conversationHistory.map((item) => `${item.speaker === 'child' ? '아이'
 raw: ${input.rawChildInput || input.childMessage}
 normalized: ${input.normalizedChildInput || input.childMessage}
 로컬 의미 추정: ${input.inputUnderstanding?.meaning || input.childMessage}
+발화 intent: ${input.inputUnderstanding?.intent || 'CREATIVE_CONTENT'}
 
 직전 AI 질문: ${input.previousAIQuestion || '없음'}
 이전 질문 목록: ${JSON.stringify(input.previousQuestions || input.memory.askedQuestions)}

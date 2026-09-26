@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { childInputNormalizer } from '../src/ai/childInputNormalizer'
+import { MotionEntry } from '../src/components/MotionEntry'
 import { MockAIProvider } from '../src/providers/mock'
 import type { ChildResponseContext } from '../src/providers/types'
 import { EMPTY_MEMORY, type CreativeMemory } from '../src/types/creative'
@@ -12,8 +15,12 @@ const analysis = {
   openingMessage: '가운데 둥근 얼굴이 보여. 내가 다르게 봤을 수도 있어. 이 친구는 누구야?',
 }
 
-function context(raw: string, memory: CreativeMemory = structuredClone(EMPTY_MEMORY)): ChildResponseContext {
-  const understanding = childInputNormalizer.normalize(raw, memory)
+function context(
+  raw: string,
+  memory: CreativeMemory = structuredClone(EMPTY_MEMORY),
+  previousAIQuestion = analysis.openingMessage,
+): ChildResponseContext {
+  const understanding = childInputNormalizer.normalize(raw, memory, previousAIQuestion)
   return {
     childMessage: raw,
     rawChildInput: raw,
@@ -22,8 +29,8 @@ function context(raw: string, memory: CreativeMemory = structuredClone(EMPTY_MEM
     memory,
     turnCount: memory.understoodInputs.length,
     drawingAnalysis: analysis,
-    conversationHistory: [{ speaker: 'ai', text: analysis.openingMessage }],
-    previousAIQuestion: memory.askedQuestions.at(-1) || '',
+    conversationHistory: [{ speaker: 'ai', text: previousAIQuestion }],
+    previousAIQuestion,
     previousQuestions: memory.askedQuestions,
   }
 }
@@ -86,4 +93,57 @@ test('scenario F: size edit is isolated and version ids cannot be reused', () =>
   assert.ok(plan.keep.some((item) => item.includes('숲')))
   assert.ok(plan.keep.some((item) => item.includes('빨간 가방')))
   assert.notEqual(createGeneratedImageId(), createGeneratedImageId())
+})
+
+test('real flow 1: a short blue answer follows the previous color question naturally', async () => {
+  const input = context('파랑색', structuredClone(EMPTY_MEMORY), '어떤 색이면 좋을까?')
+  assert.equal(input.inputUnderstanding.intent, 'ANSWER')
+  assert.equal(input.inputUnderstanding.normalized, '파란색')
+
+  const response = await new MockAIProvider().respondToChild(input)
+  assert.match(response.text, /파란색/)
+  assert.doesNotMatch(response.text, /(?:라는|이라고)\s*뜻으로 이해했어/)
+  assert.equal(response.question, '')
+})
+
+test('real flow 2: thanks is social and does not modify creative memory', async () => {
+  const memory = structuredClone(EMPTY_MEMORY)
+  memory.mainSubject = '토끼'
+  const response = await new MockAIProvider().respondToChild(context('고마워', memory, ''))
+
+  assert.equal(childInputNormalizer.normalize('고마워', memory).intent, 'SOCIAL')
+  assert.match(response.text, /같이|재밌|계속/)
+  assert.doesNotMatch(response.text, /뜻으로 이해했어/)
+  assert.deepEqual(response.memory, memory)
+  assert.equal(response.question, '')
+})
+
+test('real flow 3: conversation criticism is meta feedback, not story content', async () => {
+  const memory = structuredClone(EMPTY_MEMORY)
+  memory.mainSubject = '토끼'
+  const input = context('대화가 자연스럽지 않아', memory, '이 친구는 누구야?')
+  assert.equal(input.inputUnderstanding.intent, 'META_FEEDBACK')
+  assert.equal(input.inputUnderstanding.needsClarification, false)
+
+  const response = await new MockAIProvider().respondToChild(input)
+  assert.match(response.text, /어색|자연스럽/)
+  assert.doesNotMatch(response.text, /친구 이름|대화라는 친구/)
+  assert.deepEqual(response.memory, memory)
+})
+
+test('real flow 4: a short yellow answer responds in the prior color context', async () => {
+  const response = await new MockAIProvider().respondToChild(
+    context('노랑색', structuredClone(EMPTY_MEMORY), '어떤 색으로 할까?'),
+  )
+  assert.match(response.text, /노란색/)
+  assert.match(response.text, /밝|따뜻|색/)
+  assert.doesNotMatch(response.text, /뜻으로 이해했어/)
+  assert.equal(response.question, '')
+})
+
+test('real flow 5: unreleased motion UI exposes no mock segmentation objects', () => {
+  const html = renderToStaticMarkup(createElement(MotionEntry))
+  assert.match(html, /움직임 기능 준비 중/)
+  assert.doesNotMatch(html, /하늘과 구름|배경의 특별한 곳|대상 번호/)
+  assert.doesNotMatch(html, /움직여보기/)
 })
