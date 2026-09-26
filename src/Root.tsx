@@ -204,6 +204,7 @@ function Visualize({ drawing, memory, onBack }: {
   const [selected, setSelected] = useState(1)
   const [request, setRequest] = useState('')
   const [generating, setGenerating] = useState(true)
+  const [imageError, setImageError] = useState('')
 
   useEffect(() => {
     imageProvider.generateFromDrawing({ drawingDataUrl: drawing, memory }).finally(() => setGenerating(false))
@@ -211,15 +212,22 @@ function Visualize({ drawing, memory, onBack }: {
 
   const edit = async () => {
     if (!request.trim() || generating) return
+    const editRequest = request.trim()
     setGenerating(true)
-    await imageProvider.editImage({ sourceImageUrl: drawing, request, memory })
-    const next = versions.length + 1
-    setVersions((items) => [...items, {
-      id: next, label: `${next}번째 다듬기`, request: request.trim(), createdAt: '방금',
-    }])
-    setSelected(next)
-    setRequest('')
-    setGenerating(false)
+    setImageError('')
+    try {
+      await imageProvider.editImage({ sourceImageUrl: drawing, request: editRequest, memory })
+      const next = versions.length + 1
+      setVersions((items) => [...items, {
+        id: next, label: `${next}번째 다듬기`, request: editRequest, createdAt: '방금',
+      }])
+      setSelected(next)
+      setRequest('')
+    } catch {
+      setImageError('이미지를 다시 펼치지 못했어. 한 번 더 눌러볼래?')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const current = versions.find((version) => version.id === selected) || versions[0]
@@ -289,6 +297,7 @@ function Visualize({ drawing, memory, onBack }: {
             <button key={item} onClick={() => setRequest(item)}>{item}</button>
           ))}
         </div>
+        {imageError && <p className="image-error" role="alert">{imageError}</p>}
       </section>
 
       <section className="version-strip">
