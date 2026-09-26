@@ -105,7 +105,7 @@ class RemoteImageProvider implements ImageProvider {
 }
 
 const apiBase = import.meta.env.VITE_AI_API_BASE || '/api'
-export type ImageProviderKind = 'mock' | 'openai'
+export type ImageProviderKind = 'mock' | 'openai' | 'fal'
 
 export function createProviderClients(kind: ProviderKind, imageKind: ImageProviderKind): {
   aiProvider: AIProvider

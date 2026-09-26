@@ -35,7 +35,7 @@ VITE_AI_PROVIDER=openai
 VITE_AI_API_BASE=/api
 ```
 
-시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI)를 각각 선택할 수 있습니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
+시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI/FAL · FLUX Kontext)를 각각 선택할 수 있습니다. FAL은 `fal-ai/flux-pro/kontext/text-to-image`로 첫 이미지를 만들고 `fal-ai/flux-pro/kontext`로 후속 이미지를 편집합니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
 
 - `POST /api/analyze-drawing`
 - `POST /api/respond-to-child`
@@ -43,7 +43,7 @@ VITE_AI_API_BASE=/api
 - `POST /api/generate-image`
 - `POST /api/edit-image`
 
-OpenAI/Anthropic API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`처럼 서버 전용 환경 변수로 관리해야 합니다. Provider 계약은 `src/providers/types.ts`, 원격 어댑터는 `src/providers/index.ts`, mock 동작은 `src/providers/mock.ts`에 있습니다.
+OpenAI/Anthropic/FAL API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FAL_KEY`처럼 서버 전용 환경 변수로 관리해야 합니다. Provider 계약은 `src/providers/types.ts`, 원격 어댑터는 `src/providers/index.ts`, mock 동작은 `src/providers/mock.ts`에 있습니다.
 
 Cloud adapter는 `server/providers/openai.ts`와 `server/providers/anthropic.ts`에 있습니다. Claude는 자체 이미지 생성 API가 없으므로 Claude 대화를 선택해도 시각화는 기본적으로 OpenAI image provider를 사용합니다.
 

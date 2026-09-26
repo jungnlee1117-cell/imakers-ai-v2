@@ -60,4 +60,4 @@ export interface ImageProvider {
   editImage(input: EditImageInput): Promise<GeneratedImageAsset>
 }
 
-export type ProviderKind = 'mock' | 'openai' | 'anthropic' | 'local'
+export type ProviderKind = 'mock' | 'openai' | 'anthropic' | 'fal' | 'local'

@@ -52,9 +52,9 @@ function StartScreen({ onDraw, onUpload, provider, onProviderChange, imageProvid
         </div>
         <div className="image-provider-switch" aria-label="이미지 provider">
           <small>IMAGE</small>
-          {(['mock', 'openai'] as ImageProviderKind[]).map((item) => (
+          {(['mock', 'openai', 'fal'] as ImageProviderKind[]).map((item) => (
             <button key={item} className={imageProviderKind === item ? 'active' : ''} onClick={() => onImageProviderChange(item)}>
-              {item === 'openai' ? 'OpenAI' : 'Mock'}
+              {item === 'openai' ? 'OpenAI' : item === 'fal' ? 'FAL · FLUX Kontext' : 'Mock'}
             </button>
           ))}
         </div>
@@ -417,7 +417,9 @@ export default function Root() {
   })
   const [imageProviderKind, setImageProviderKind] = useState<ImageProviderKind>(() => {
     const saved = localStorage.getItem('imakers-image-provider')
-    return saved === 'openai' ? 'openai' : 'mock'
+    if (saved === 'openai' || saved === 'fal' || saved === 'mock') return saved
+    const configured = import.meta.env.VITE_IMAGE_PROVIDER
+    return configured === 'openai' || configured === 'fal' ? configured : 'mock'
   })
   const clients = useMemo(() => createProviderClients(provider, imageProviderKind), [provider, imageProviderKind])
 

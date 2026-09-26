@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const providerKindSchema = z.enum(['openai', 'anthropic', 'mock'])
+export const providerKindSchema = z.enum(['openai', 'anthropic', 'fal', 'mock'])
 
 export const creativeMemorySchema = z.object({
   mainSubject: z.string().default(''),

@@ -75,6 +75,7 @@ app.get('/api/providers', (_request, response) => {
   response.json({
     openai: { configured: Boolean(process.env.OPENAI_API_KEY) },
     anthropic: { configured: Boolean(process.env.ANTHROPIC_API_KEY) },
+    fal: { configured: Boolean(process.env.FAL_KEY) },
     mock: { configured: true },
   })
 })
