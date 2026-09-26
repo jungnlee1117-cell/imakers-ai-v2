@@ -91,7 +91,8 @@ export const coachResponseSchema = z.object({
     child_requested_additions: z.array(z.string()).default([]),
     mood: z.string().optional().default(''),
   }),
-  ready_to_visualize: z.boolean(),
+  // Legacy compatibility field. Creation readiness is owned by planner.shouldCreateNow.
+  ready_to_visualize: z.boolean().optional().default(false),
 })
 
 export const memorySummarySchema = creativeMemorySchema
