@@ -7,6 +7,7 @@ import type {
   GenerateImageInput,
   ImageProvider,
   ProviderKind,
+  GeneratedImageAsset,
 } from './types'
 import type { CreativeMemory, DrawingAnalysis } from '../types/creative'
 
@@ -86,8 +87,7 @@ class RemoteImageProvider implements ImageProvider {
       const data = await response.json().catch(() => ({ error: '' })) as { error?: string }
       throw new Error(data.error || '이미지를 만드는 중 문제가 생겼어요.')
     }
-    const data = (await response.json()) as { imageUrl: string }
-    return data.imageUrl
+    return response.json() as Promise<GeneratedImageAsset>
   }
 
   generateFromDrawing(input: GenerateImageInput) {
@@ -97,6 +97,7 @@ class RemoteImageProvider implements ImageProvider {
   editImage(input: EditImageInput) {
     return this.post('/edit-image', {
       drawingDataUrl: input.sourceImageUrl,
+      previousImageId: input.previousImageId,
       request: input.request,
       memory: input.memory,
     })
@@ -104,18 +105,15 @@ class RemoteImageProvider implements ImageProvider {
 }
 
 const apiBase = import.meta.env.VITE_AI_API_BASE || '/api'
-const imageKind = (import.meta.env.VITE_IMAGE_PROVIDER || 'openai') as Exclude<ProviderKind, 'mock'>
+export type ImageProviderKind = 'mock' | 'openai'
 
-export function createProviderClients(kind: ProviderKind): {
+export function createProviderClients(kind: ProviderKind, imageKind: ImageProviderKind): {
   aiProvider: AIProvider
   imageProvider: ImageProvider
 } {
-  if (kind === 'mock') {
-    return { aiProvider: new MockAIProvider(), imageProvider: new MockImageProvider() }
-  }
   return {
-    aiProvider: new RemoteAIProvider(kind, apiBase),
-    imageProvider: new RemoteImageProvider(imageKind, apiBase),
+    aiProvider: kind === 'mock' ? new MockAIProvider() : new RemoteAIProvider(kind, apiBase),
+    imageProvider: imageKind === 'mock' ? new MockImageProvider() : new RemoteImageProvider(imageKind, apiBase),
   }
 }
 

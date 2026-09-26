@@ -8,6 +8,7 @@ import {
   UnsupportedCapabilityError,
 } from './contracts.js'
 import { getCloudProvider } from './providers/index.js'
+import { buildImagePlan, createGeneratedImageId } from './imagePlan.js'
 
 const app = express()
 const port = Number(process.env.API_PORT || 43128)
@@ -25,6 +26,15 @@ const analyzeRequestSchema = providerRequestSchema.extend({
 const respondRequestSchema = providerRequestSchema.extend({
   context: z.object({
     childMessage: z.string().min(1).max(1000),
+    rawChildInput: z.string().min(1).max(1000),
+    normalizedChildInput: z.string().min(1).max(1000),
+    inputUnderstanding: z.object({
+      raw: z.string(),
+      normalized: z.string(),
+      meaning: z.string(),
+      confidence: z.enum(['high', 'medium', 'low']),
+      needsClarification: z.boolean(),
+    }),
     memory: creativeMemorySchema,
     turnCount: z.number().int().nonnegative(),
     drawingAnalysis: drawingAnalysisSchema,
@@ -32,6 +42,8 @@ const respondRequestSchema = providerRequestSchema.extend({
       speaker: z.enum(['ai', 'child']),
       text: z.string(),
     })).max(50),
+    previousAIQuestion: z.string(),
+    previousQuestions: z.array(z.string()),
   }),
 })
 
@@ -43,10 +55,20 @@ const imageRequestSchema = providerRequestSchema.extend({
   drawingDataUrl: z.string().startsWith('data:image/'),
   memory: creativeMemorySchema,
   request: z.string().max(1000).optional(),
+  previousImageId: z.string().optional(),
 })
 
 function unique(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+function questionSimilarity(left: string, right: string) {
+  const tokens = (value: string) => new Set(value.replace(/[?!.,]/g, '').split(/\s+/).filter((word) => word.length > 1))
+  const a = tokens(left)
+  const b = tokens(right)
+  if (!a.size || !b.size) return 0
+  const intersection = [...a].filter((token) => b.has(token)).length
+  return intersection / Math.max(a.size, b.size)
 }
 
 app.get('/api/providers', (_request, response) => {
@@ -70,7 +92,17 @@ app.post('/api/analyze-drawing', async (request, response, next) => {
 app.post('/api/respond-to-child', async (request, response, next) => {
   try {
     const body = respondRequestSchema.parse(request.body)
-    const result = await getCloudProvider(body.provider).respondToChild(body.context)
+    const provider = getCloudProvider(body.provider)
+    let result = await provider.respondToChild(body.context)
+    const similarQuestion = body.context.previousQuestions.find(
+      (question) => result.data.question && questionSimilarity(question, result.data.question) >= .55,
+    )
+    if (similarQuestion) {
+      result = await provider.respondToChild({
+        ...body.context,
+        retryInstruction: `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하다. 질문을 생략하거나 감정·관계·이유·변화 중 실제 문맥에 맞는 전혀 다른 방향으로 다시 응답하라.`,
+      })
+    }
     const updates = result.data.memory_updates
     const previous = body.context.memory
     const memory = {
@@ -83,6 +115,19 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       behaviors: unique([...previous.behaviors, ...updates.behaviors]),
       movementIdeas: unique([...previous.movementIdeas, ...updates.movement_ideas]),
       worldRules: unique([...previous.worldRules, ...updates.world_rules]),
+      understoodInputs: [...previous.understoodInputs, {
+        raw: result.data.input_understanding.raw,
+        normalized: result.data.input_understanding.normalized,
+        meaning: result.data.input_understanding.meaning,
+        confidence: result.data.input_understanding.confidence,
+        needsClarification: result.data.input_understanding.needs_clarification,
+      }],
+      questionFocuses: result.data.question_focus
+        ? unique([...previous.questionFocuses, result.data.question_focus])
+        : previous.questionFocuses,
+      sceneDescription: updates.scene_description || previous.sceneDescription,
+      characterDescription: updates.character_description || previous.characterDescription,
+      childRequestedAdditions: unique([...previous.childRequestedAdditions, ...updates.child_requested_additions]),
     }
     response.json({
       reaction: result.data.reaction,
@@ -114,8 +159,17 @@ app.post('/api/summarize-memory', async (request, response, next) => {
 app.post('/api/generate-image', async (request, response, next) => {
   try {
     const body = imageRequestSchema.parse(request.body)
-    const result = await getCloudProvider(body.provider).generateImage(body)
-    response.json({ imageUrl: result.data, provider: body.provider, model: result.model, latency_ms: result.latencyMs })
+    const { keep, change, generationPrompt } = buildImagePlan(body.memory)
+    const result = await getCloudProvider(body.provider).generateImage({ ...body, generationPrompt, keep, change })
+    response.json({
+      imageUrl: result.data,
+      imageId: createGeneratedImageId(body.provider),
+      provider: body.provider,
+      isMock: false,
+      model: result.model,
+      latency_ms: result.latencyMs,
+      debug: { generationRequest: generationPrompt, keep, change },
+    })
   } catch (error) {
     next(error)
   }
@@ -124,8 +178,22 @@ app.post('/api/generate-image', async (request, response, next) => {
 app.post('/api/edit-image', async (request, response, next) => {
   try {
     const body = imageRequestSchema.parse(request.body)
-    const result = await getCloudProvider(body.provider).editImage(body)
-    response.json({ imageUrl: result.data, provider: body.provider, model: result.model, latency_ms: result.latencyMs })
+    const { keep, change, generationPrompt } = buildImagePlan(body.memory, body.request)
+    const result = await getCloudProvider(body.provider).editImage({ ...body, generationPrompt, keep, change })
+    response.json({
+      imageUrl: result.data,
+      imageId: createGeneratedImageId(body.provider),
+      provider: body.provider,
+      isMock: false,
+      model: result.model,
+      latency_ms: result.latencyMs,
+      debug: {
+        generationRequest: generationPrompt,
+        keep,
+        change,
+        previousImageId: body.previousImageId,
+      },
+    })
   } catch (error) {
     next(error)
   }

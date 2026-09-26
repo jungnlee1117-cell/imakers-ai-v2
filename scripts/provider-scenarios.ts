@@ -20,6 +20,11 @@ const emptyMemory = {
   behaviors: [],
   movementIdeas: [],
   worldRules: [],
+  understoodInputs: [],
+  questionFocuses: [],
+  sceneDescription: '',
+  characterDescription: '',
+  childRequestedAdditions: [],
 }
 
 export interface ProviderScenario {

@@ -12,6 +12,17 @@ export const creativeMemorySchema = z.object({
   behaviors: z.array(z.string()).default([]),
   movementIdeas: z.array(z.string()).default([]),
   worldRules: z.array(z.string()).default([]),
+  understoodInputs: z.array(z.object({
+    raw: z.string(),
+    normalized: z.string(),
+    meaning: z.string(),
+    confidence: z.enum(['high', 'medium', 'low']),
+    needsClarification: z.boolean(),
+  })).default([]),
+  questionFocuses: z.array(z.string()).default([]),
+  sceneDescription: z.string().default(''),
+  characterDescription: z.string().default(''),
+  childRequestedAdditions: z.array(z.string()).default([]),
 })
 
 export const drawingAnalysisSchema = z.object({
@@ -27,7 +38,15 @@ export const coachResponseSchema = z.object({
   reaction: z.string(),
   connection: z.string(),
   suggestion: z.string(),
-  question: z.string(),
+  question: z.string().default(''),
+  question_focus: z.string().default(''),
+  input_understanding: z.object({
+    raw: z.string(),
+    normalized: z.string(),
+    meaning: z.string(),
+    confidence: z.enum(['high', 'medium', 'low']),
+    needs_clarification: z.boolean(),
+  }),
   memory_updates: z.object({
     main_subject: z.string().optional().default(''),
     confirmed_facts: z.array(z.string()),
@@ -36,6 +55,9 @@ export const coachResponseSchema = z.object({
     behaviors: z.array(z.string()),
     movement_ideas: z.array(z.string()),
     world_rules: z.array(z.string()),
+    scene_description: z.string().default(''),
+    character_description: z.string().default(''),
+    child_requested_additions: z.array(z.string()).default([]),
     mood: z.string().optional().default(''),
   }),
   ready_to_visualize: z.boolean(),
@@ -55,16 +77,32 @@ export interface ConversationItem {
 
 export interface RespondInput {
   childMessage: string
+  rawChildInput?: string
+  normalizedChildInput?: string
+  inputUnderstanding?: {
+    raw: string
+    normalized: string
+    meaning: string
+    confidence: 'high' | 'medium' | 'low'
+    needsClarification: boolean
+  }
   memory: CreativeMemory
   drawingAnalysis: DrawingAnalysis
   conversationHistory: ConversationItem[]
   turnCount: number
+  previousAIQuestion?: string
+  previousQuestions?: string[]
+  retryInstruction?: string
 }
 
 export interface ImageInput {
   drawingDataUrl: string
   memory: CreativeMemory
   request?: string
+  previousImageId?: string
+  generationPrompt?: string
+  keep?: string[]
+  change?: string[]
 }
 
 export interface TimedResult<T> {

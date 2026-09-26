@@ -8,14 +8,24 @@ import type {
   ImageProvider,
 } from './types'
 
-const wait = (ms = 650) => new Promise((resolve) => window.setTimeout(resolve, ms))
+const wait = (ms = 450) => new Promise((resolve) => globalThis.setTimeout(resolve, ms))
 
 const unique = (items: string[]) => [...new Set(items.filter(Boolean))]
 
+function inferSubject(meaning: string, current: string) {
+  for (const subject of ['돼지', '우주선', '로봇', '공룡 자동차', '공룡', '고래', '펭귄']) {
+    if (meaning.includes(subject)) return subject
+  }
+  return current
+}
+
 function updateMemory(context: ChildResponseContext): CreativeMemory {
-  const { childMessage, memory, turnCount } = context
-  const text = childMessage.trim()
-  const next = { ...memory }
+  const { inputUnderstanding, memory } = context
+  const text = inputUnderstanding.normalized
+  const next = {
+    ...memory,
+    understoodInputs: [...memory.understoodInputs, inputUnderstanding],
+  }
   const rejection = /싫|아니|빼|없애|안 해|하지 마/.test(text)
 
   if (rejection) {
@@ -24,8 +34,15 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
     return next
   }
 
-  if (turnCount <= 1 && text.length < 22) next.mainSubject = text.replace(/[.!?]/g, '')
-  else next.confirmedFacts = unique([...memory.confirmedFacts, text.replace(/[.!?]/g, '')])
+  next.mainSubject = inferSubject(inputUnderstanding.meaning, memory.mainSubject)
+  next.confirmedFacts = unique([...memory.confirmedFacts, inputUnderstanding.meaning])
+  if (/돼지/.test(text)) next.characterDescription = '아이 그림의 특징을 유지한 돼지'
+  if (/우주선/.test(text)) next.characterDescription = '달에서 장사하는 우주선'
+  if (/로봇/.test(text) || /장난감/.test(text)) next.characterDescription = '감정이 표정에 드러나는 로봇'
+  if (/숲/.test(text)) next.sceneDescription = '나무가 이어진 숲길'
+  if (/달/.test(text)) next.sceneDescription = '달 표면의 아이스크림 가게'
+  if (/친구한테/.test(text)) next.sceneDescription = '친구를 만나러 가는 길'
+  if (/가방|선물|숲|밤/.test(text)) next.childRequestedAdditions = unique([...memory.childRequestedAdditions, text])
 
   if (/크게|큰 |밝|따뜻|귀여|신나/.test(text)) {
     next.childPreferences = unique([...memory.childPreferences, text.replace(/[.!?]/g, '')])
@@ -45,56 +62,79 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
 }
 
 function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AIResponse {
-  const text = context.childMessage.trim()
+  const text = context.normalizedChildInput
   const rejected = /싫|아니|빼|없애|안 해|하지 마/.test(text)
   const unsure = /모르|글쎄|음\.\.\.|몰라/.test(text)
-  const subject = memory.mainSubject || '이 친구'
+  let reaction = ''
+  let connection = ''
+  let suggestion = ''
+  let question = ''
+  let focus = ''
 
   if (rejected) {
-    return {
-      text: `좋아, 그 생각은 빼자. 네가 정한 모습이 더 중요해. 그럼 ${subject}에게 꼭 남기고 싶은 건 뭐야?`,
-      elements: ['REACT', 'CONNECT'],
-      memory,
-      readyToVisualize: context.turnCount >= 3,
+    reaction = '좋아, 그 생각은 빼자. 네가 정한 모습이 더 중요해.'
+  } else if (context.inputUnderstanding.needsClarification) {
+    const name = text.match(/^([가-힣]{2,4})[이가]\s/)?.[1] || '그 말'
+    reaction = `${name}가 중요한 친구인 것 같네.`
+    question = `${name}는 네가 만든 친구 이름이야?`
+    focus = 'identity'
+  } else if (unsure) {
+    reaction = '아직 딱 떠오르지 않는구나.'
+    suggestion = '표정이 달라지거나, 누군가 먼저 말을 거는 장면을 생각해볼 수 있어. 완전히 다른 생각도 좋아.'
+  } else if (/돼지.*친구|친구.*돼지/.test(context.inputUnderstanding.meaning)) {
+    reaction = '아, 이 돼지는 친구를 만나러 가는 중이구나.'
+    connection = '친구를 향해 가는 마음이 돼지 표정에도 담겨 있을 것 같아.'
+    question = '친구를 만나면 제일 먼저 뭐라고 말하고 싶을까?'
+    focus = 'relationship'
+  } else if (/우주선.*달.*아이스크림/.test(context.inputUnderstanding.meaning)) {
+    reaction = '달에서 아이스크림을 파는 우주선이라니, 가게와 탈것이 하나인 거네.'
+    suggestion = '달에서는 녹지 않고 반짝이는 아이스크림도 어울릴 것 같아.'
+    question = '달 손님들이 가장 좋아하는 맛은 어떤 맛일까?'
+    focus = 'world-detail'
+  } else if (/장난감.*가져|화가 난/.test(context.inputUnderstanding.meaning)) {
+    reaction = '친구가 장난감을 가져가서 속상하고 화가 난 마음이구나.'
+    connection = `${memory.mainSubject || '그림 속 친구'}의 표정이 왜 그렇게 보였는지 이제 알 것 같아.`
+    question = `${memory.mainSubject || '이 친구'}는 친구에게 자기 마음을 어떻게 알려주고 싶을까?`
+    focus = 'emotion'
+  } else if (/밤|숲|가방|선물/.test(text)) {
+    reaction = `${context.inputUnderstanding.meaning}이라는 장면이 더 또렷해졌어.`
+    connection = memory.mainSubject ? `${memory.mainSubject}의 모습과 지금 말한 배경이 이어진다.` : ''
+    question = /선물/.test(text) ? '선물을 받은 친구는 어떤 표정을 지을까?' : ''
+    focus = question ? 'reaction' : ''
+  } else {
+    reaction = `${context.inputUnderstanding.meaning}이라는 뜻으로 이해했어.`
+    connection = memory.mainSubject ? `아까 이야기한 ${memory.mainSubject}와도 이어지네.` : ''
+    if (context.turnCount < 2) {
+      question = '이 장면에서 주인공의 마음은 어떤 색에 가까울까?'
+      focus = 'emotion'
     }
   }
-  if (unsure) {
-    return {
-      text: `아직 떠오르지 않는구나. 내 생각 두 개만 놓아볼게. 길에서 반짝이는 흔적을 발견하거나, 누군가 도움을 청하는 건 어때? 아니면 완전히 다른 생각도 좋아.`,
-      elements: ['SUPPORT', 'SUGGEST'],
-      memory,
-      readyToVisualize: false,
-    }
+
+  const readyToVisualize = context.turnCount >= 3 || memory.confirmedFacts.length >= 4
+  if (readyToVisualize && !question) {
+    question = '지금까지 말해준 모습을 그림으로 같이 펼쳐볼까?'
+    focus = 'consent'
   }
-  if (context.turnCount === 0) {
-    return {
-      text: `아, ${text}(이)구나! 그래서 그림 속 모양들이 서로 이어져 있었구나. ${subject}는 지금 어디로 가고 있어?`,
-      elements: ['REACT', 'CONNECT'],
-      memory,
-      readyToVisualize: false,
-    }
+  const nextMemory = {
+    ...memory,
+    askedQuestions: question ? unique([...memory.askedQuestions, question]) : memory.askedQuestions,
+    questionFocuses: focus ? unique([...memory.questionFocuses, focus]) : memory.questionFocuses,
   }
-  if (context.turnCount === 1) {
-    return {
-      text: `${text}라서 서두르고 있는 거구나. 아까 말한 ${subject}의 모습과 잘 이어진다. 가는 길에 어떤 곳을 지나면 재미있을까?`,
-      elements: ['REACT', 'CONNECT', 'EXPAND'],
-      memory,
-      readyToVisualize: false,
-    }
-  }
-  if (context.turnCount === 2) {
-    return {
-      text: `${text}, 그 장면이 눈앞에 보이는 것 같아. 그곳을 지나려면 ${subject}만의 특별한 방법이 필요하겠네. 어떤 방법을 떠올렸어?`,
-      elements: ['REACT', 'CONNECT', 'EXPAND'],
-      memory,
-      readyToVisualize: false,
-    }
-  }
+  const parts = [reaction, connection, suggestion, question].filter(Boolean)
   return {
-    text: `그 방법은 네 이야기에서만 나올 수 있겠다. 지금까지 말해준 ${subject}의 모습이 꽤 또렷해졌어. 네가 말해준 모습을 같이 만들어볼까?`,
-    elements: ['REACT', 'CONNECT'],
-    memory,
-    readyToVisualize: true,
+    text: parts.join(' '),
+    reaction,
+    connection,
+    suggestion,
+    question,
+    elements: [
+      ...(reaction ? ['REACT' as const] : []),
+      ...(connection ? ['CONNECT' as const] : []),
+      ...(suggestion ? ['SUGGEST' as const] : []),
+      ...(question ? ['EXPAND' as const] : []),
+    ],
+    memory: nextMemory,
+    readyToVisualize,
   }
 }
 
@@ -117,13 +157,6 @@ export class MockAIProvider implements AIProvider {
     await wait()
     const memory = updateMemory(context)
     const response = makeResponse(context, memory)
-    const question = response.text.match(/[^.!?]*\?/)?.[0]?.trim()
-    if (question) {
-      response.memory = {
-        ...response.memory,
-        askedQuestions: unique([...response.memory.askedQuestions, question]),
-      }
-    }
     return response
   }
 
@@ -133,13 +166,34 @@ export class MockAIProvider implements AIProvider {
 }
 
 export class MockImageProvider implements ImageProvider {
-  async generateFromDrawing(input: GenerateImageInput): Promise<string> {
+  async generateFromDrawing(input: GenerateImageInput) {
     await wait(1200)
-    return input.drawingDataUrl
+    return {
+      imageUrl: input.drawingDataUrl,
+      imageId: `mock-${crypto.randomUUID()}`,
+      provider: 'mock',
+      isMock: true,
+      debug: {
+        generationRequest: 'Mock provider: 실제 이미지 생성 요청을 보내지 않았습니다.',
+        keep: [input.memory.mainSubject || '원본 그림'],
+        change: input.memory.confirmedFacts,
+      },
+    }
   }
 
-  async editImage(input: EditImageInput): Promise<string> {
+  async editImage(input: EditImageInput) {
     await wait(1100)
-    return input.sourceImageUrl
+    return {
+      imageUrl: input.sourceImageUrl,
+      imageId: `mock-${crypto.randomUUID()}`,
+      provider: 'mock',
+      isMock: true,
+      debug: {
+        generationRequest: `Mock edit: ${input.request}`,
+        keep: [input.memory.mainSubject || '원본 그림', ...input.memory.confirmedFacts],
+        change: [input.request],
+        previousImageId: input.previousImageId,
+      },
+    }
   }
 }

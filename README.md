@@ -35,7 +35,7 @@ VITE_AI_PROVIDER=openai
 VITE_AI_API_BASE=/api
 ```
 
-시작 화면 우측 상단에서 체험(mock), OpenAI, Claude를 선택할 수 있습니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
+시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI)를 각각 선택할 수 있습니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
 
 - `POST /api/analyze-drawing`
 - `POST /api/respond-to-child`
@@ -70,6 +70,10 @@ npm run test:providers
 - `worldRules`: 조건에 따라 일어나는 세계의 규칙
 
 실제 서비스에서는 이 객체 전체를 대화 및 이미지 생성 요청에 포함하도록 설계되어 있습니다.
+
+아이 입력은 `src/ai/childInputNormalizer.ts`에서 raw/normalized/meaning으로 구분합니다. 확실한 오타만 조용히 정규화하며, 불확실한 고유명사는 AI Coach가 확인합니다.
+
+실제 OpenAI 이미지 요청은 원본 그림과 Creative Memory를 `server/imagePlan.ts`에서 KEEP/CHANGE 계획으로 구성합니다. 개발 모드에서는 Visualize 화면의 Image Generation Debug 패널에서 provider, prompt, image ID와 이전 image ID를 확인할 수 있습니다.
 
 ## Motion 구조
 

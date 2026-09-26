@@ -110,7 +110,7 @@ export class OpenAIAdapter implements CloudAIProvider {
     const response = await this.client.images.edit({
       model: this.imageModel,
       image,
-      prompt: imagePrompt(input.memory, input.request),
+      prompt: input.generationPrompt || imagePrompt(input.memory, input.request),
       size: '1024x1024',
     })
     const result = response.data?.[0]

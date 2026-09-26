@@ -6,8 +6,9 @@ import {
 } from 'lucide-react'
 import { DrawingStudio } from './components/DrawingStudio'
 import { MotionStudio } from './components/MotionStudio'
+import { childInputNormalizer } from './ai/childInputNormalizer'
 import { createProviderClients } from './providers'
-import type { AIProvider, ImageProvider, ProviderKind } from './providers'
+import type { AIProvider, ImageProvider, ImageProviderKind, ProviderKind } from './providers'
 import type { ConversationTurn, CreativeMemory, DrawingAnalysis, ImageVersion, StudioStep } from './types/creative'
 import { EMPTY_MEMORY } from './types/creative'
 import './studio.css'
@@ -16,11 +17,13 @@ const Logo = () => (
   <div className="logo-mark"><span>i</span><strong>아이메이커스</strong><em>AI</em></div>
 )
 
-function StartScreen({ onDraw, onUpload, provider, onProviderChange }: {
+function StartScreen({ onDraw, onUpload, provider, onProviderChange, imageProviderKind, onImageProviderChange }: {
   onDraw: () => void
   onUpload: (image: string) => void
   provider: ProviderKind
   onProviderChange: (provider: ProviderKind) => void
+  imageProviderKind: ImageProviderKind
+  onImageProviderChange: (provider: ImageProviderKind) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +47,14 @@ function StartScreen({ onDraw, onUpload, provider, onProviderChange }: {
               onClick={() => onProviderChange(item)}
             >
               {item === 'anthropic' ? 'Claude' : item === 'openai' ? 'OpenAI' : '체험'}
+            </button>
+          ))}
+        </div>
+        <div className="image-provider-switch" aria-label="이미지 provider">
+          <small>IMAGE</small>
+          {(['mock', 'openai'] as ImageProviderKind[]).map((item) => (
+            <button key={item} className={imageProviderKind === item ? 'active' : ''} onClick={() => onImageProviderChange(item)}>
+              {item === 'openai' ? 'OpenAI' : 'Mock'}
             </button>
           ))}
         </div>
@@ -114,16 +125,22 @@ function Conversation({ drawing, onBack, onVisualize, aiProvider }: {
   const reply = async () => {
     const childMessage = input.trim()
     if (!childMessage || !analysis || thinking) return
+    const understanding = childInputNormalizer.normalize(childMessage, memory)
     setTurns((items) => [...items, { id: crypto.randomUUID(), speaker: 'child', text: childMessage }])
     setInput('')
     setThinking(true)
     try {
       const response = await aiProvider.respondToChild({
         childMessage,
+        rawChildInput: childMessage,
+        normalizedChildInput: understanding.normalized,
+        inputUnderstanding: understanding,
         memory,
         turnCount: turns.filter((turn) => turn.speaker === 'child').length,
         drawingAnalysis: analysis,
         conversationHistory: turns.map(({ speaker, text }) => ({ speaker, text })),
+        previousAIQuestion: memory.askedQuestions.at(-1) || '',
+        previousQuestions: memory.askedQuestions,
       })
       setMemory(response.memory)
       setReady(response.readyToVisualize)
@@ -234,7 +251,16 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
   onMotion: (image: string) => void
 }) {
   const [versions, setVersions] = useState<ImageVersion[]>([
-    { id: 1, label: '첫 번째 펼침', request: '처음 함께 만든 모습', createdAt: '방금', imageUrl: drawing },
+    {
+      id: 1,
+      label: '첫 번째 펼침',
+      request: '처음 함께 만든 모습',
+      createdAt: '방금',
+      imageUrl: drawing,
+      imageId: 'pending',
+      provider: 'pending',
+      isMock: false,
+    },
   ])
   const [selected, setSelected] = useState(1)
   const [request, setRequest] = useState('')
@@ -243,8 +269,8 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
 
   useEffect(() => {
     imageProvider.generateFromDrawing({ drawingDataUrl: drawing, memory })
-      .then((imageUrl) => {
-        setVersions((items) => items.map((version) => version.id === 1 ? { ...version, imageUrl } : version))
+      .then((asset) => {
+        setVersions((items) => items.map((version) => version.id === 1 ? { ...version, ...asset } : version))
       })
       .catch((error: unknown) => {
         setImageError(error instanceof Error ? error.message : '이미지를 펼치지 못했어요.')
@@ -258,22 +284,26 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
     setGenerating(true)
     setImageError('')
     try {
-      const imageUrl = await imageProvider.editImage({ sourceImageUrl: current.imageUrl, request: editRequest, memory })
+      const asset = await imageProvider.editImage({
+        sourceImageUrl: current.imageUrl,
+        previousImageId: current.imageId,
+        request: editRequest,
+        memory,
+      })
       const next = versions.length + 1
       setVersions((items) => [...items, {
-        id: next, label: `${next}번째 다듬기`, request: editRequest, createdAt: '방금', imageUrl,
+        id: next, label: `${next}번째 다듬기`, request: editRequest, createdAt: '방금', ...asset,
       }])
       setSelected(next)
       setRequest('')
-    } catch {
-      setImageError('이미지를 다시 펼치지 못했어. 한 번 더 눌러볼래?')
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : '이미지를 다시 펼치지 못했어. 한 번 더 눌러볼래?')
     } finally {
       setGenerating(false)
     }
   }
 
   const current = versions.find((version) => version.id === selected) || versions[0]
-  const visualClass = /밤|어둡/.test(current.request) ? 'night' : /크게|커/.test(current.request) ? 'bigger' : ''
 
   return (
     <main className="visualize-page">
@@ -301,12 +331,11 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
         </article>
         <div className="compare-spark"><Sparkles size={20} /></div>
         <article>
-          <div className="image-title"><span>02</span><div><small>IMAGINED TOGETHER</small><strong>AI와 함께 펼친 그림</strong></div></div>
-          <div className={`comparison-frame imagined ${visualClass}`}>
-            <div className="generated-scene">
+          <div className="image-title"><span>02</span><div><small>IMAGINED TOGETHER · {current.provider.toUpperCase()}</small><strong>{current.isMock ? 'Mock 미리보기' : 'AI와 함께 펼친 그림'}</strong></div></div>
+          <div className="comparison-frame imagined">
+            <div className={current.isMock ? 'generated-scene mock-scene' : 'generated-scene real-scene'}>
               <img src={current.imageUrl} alt="AI와 함께 펼친 그림" />
-              <div className="scene-glow" />
-              <span className="scene-star one">✦</span><span className="scene-star two">✦</span>
+              {current.isMock && <strong className="mock-image-badge">MOCK IMAGE · 실제 생성 아님</strong>}
             </div>
             {generating && <div className="image-loading"><LoaderCircle className="spin" /><strong>네 생각을 그림으로 펼치는 중…</strong></div>}
           </div>
@@ -355,6 +384,20 @@ function Visualize({ drawing, memory, onBack, imageProvider, onMotion }: {
         </div>
         <button className="version-arrow" onClick={() => setSelected(Math.min(versions.length, selected + 1))}><ChevronRight /></button>
       </section>
+      {import.meta.env.DEV && current.debug && (
+        <details className="image-debug-panel">
+          <summary>Image Generation Debug</summary>
+          <dl>
+            <div><dt>Image provider</dt><dd>{current.provider}</dd></div>
+            <div><dt>Generated image ID</dt><dd>{current.imageId}</dd></div>
+            <div><dt>Previous image ID</dt><dd>{current.debug.previousImageId || '없음'}</dd></div>
+            <div><dt>KEEP</dt><dd>{current.debug.keep.join(' · ') || '없음'}</dd></div>
+            <div><dt>CHANGE</dt><dd>{current.debug.change.join(' · ') || '없음'}</dd></div>
+            <div className="full"><dt>Generation request</dt><dd>{current.debug.generationRequest}</dd></div>
+            <div className="full"><dt>Creative Memory</dt><dd><pre>{JSON.stringify(memory, null, 2)}</pre></dd></div>
+          </dl>
+        </details>
+      )}
       <section className="motion-entry">
         <div><span><Play size={16} fill="currentColor" /></span><p><strong>이제 그림에 움직임을 넣어볼까?</strong><small>게임이 아니라, 네 그림이 살아나는 모습을 먼저 볼 거야.</small></p></div>
         <button onClick={() => onMotion(current.imageUrl)}>내 그림 움직여보기 <span>→</span></button>
@@ -372,11 +415,19 @@ export default function Root() {
     const saved = localStorage.getItem('imakers-provider')
     return saved === 'openai' || saved === 'anthropic' || saved === 'mock' ? saved : 'mock'
   })
-  const clients = useMemo(() => createProviderClients(provider), [provider])
+  const [imageProviderKind, setImageProviderKind] = useState<ImageProviderKind>(() => {
+    const saved = localStorage.getItem('imakers-image-provider')
+    return saved === 'openai' ? 'openai' : 'mock'
+  })
+  const clients = useMemo(() => createProviderClients(provider, imageProviderKind), [provider, imageProviderKind])
 
   const changeProvider = (next: ProviderKind) => {
     setProvider(next)
     localStorage.setItem('imakers-provider', next)
+  }
+  const changeImageProvider = (next: ImageProviderKind) => {
+    setImageProviderKind(next)
+    localStorage.setItem('imakers-image-provider', next)
   }
 
   const useDrawing = (image: string) => {
@@ -394,5 +445,5 @@ export default function Root() {
   if (step === 'motion' && motionImage) {
     return <MotionStudio image={motionImage} memory={memory} onBack={() => setStep('visualize')} />
   }
-  return <StartScreen onDraw={() => setStep('draw')} onUpload={useDrawing} provider={provider} onProviderChange={changeProvider} />
+  return <StartScreen onDraw={() => setStep('draw')} onUpload={useDrawing} provider={provider} onProviderChange={changeProvider} imageProviderKind={imageProviderKind} onImageProviderChange={changeImageProvider} />
 }

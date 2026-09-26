@@ -12,7 +12,8 @@
     "dev:api": "tsx watch server/index.ts",
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
     "test:providers": "tsx scripts/compare-providers.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:ai": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
