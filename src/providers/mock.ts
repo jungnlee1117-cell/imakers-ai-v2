@@ -44,6 +44,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   if (rejected) {
     return {
       text: `좋아, 그 생각은 빼자. 네가 정한 모습이 더 중요해. 그럼 ${subject}에게 꼭 남기고 싶은 건 뭐야?`,
+      elements: ['REACT', 'CONNECT'],
       memory,
       readyToVisualize: context.turnCount >= 3,
     }
@@ -51,6 +52,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   if (unsure) {
     return {
       text: `아직 떠오르지 않는구나. 내 생각 두 개만 놓아볼게. 길에서 반짝이는 흔적을 발견하거나, 누군가 도움을 청하는 건 어때? 아니면 완전히 다른 생각도 좋아.`,
+      elements: ['SUPPORT', 'SUGGEST'],
       memory,
       readyToVisualize: false,
     }
@@ -58,6 +60,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   if (context.turnCount === 0) {
     return {
       text: `아, ${text}(이)구나! 그래서 그림 속 모양들이 서로 이어져 있었구나. ${subject}는 지금 어디로 가고 있어?`,
+      elements: ['REACT', 'CONNECT'],
       memory,
       readyToVisualize: false,
     }
@@ -65,6 +68,7 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   if (context.turnCount === 1) {
     return {
       text: `${text}라서 서두르고 있는 거구나. 아까 말한 ${subject}의 모습과 잘 이어진다. 가는 길에 어떤 곳을 지나면 재미있을까?`,
+      elements: ['REACT', 'CONNECT', 'EXPAND'],
       memory,
       readyToVisualize: false,
     }
@@ -72,12 +76,14 @@ function makeResponse(context: ChildResponseContext, memory: CreativeMemory): AI
   if (context.turnCount === 2) {
     return {
       text: `${text}, 그 장면이 눈앞에 보이는 것 같아. 그곳을 지나려면 ${subject}만의 특별한 방법이 필요하겠네. 어떤 방법을 떠올렸어?`,
+      elements: ['REACT', 'CONNECT', 'EXPAND'],
       memory,
       readyToVisualize: false,
     }
   }
   return {
     text: `그 방법은 네 이야기에서만 나올 수 있겠다. 지금까지 말해준 ${subject}의 모습이 꽤 또렷해졌어. 네가 말해준 모습을 같이 만들어볼까?`,
+    elements: ['REACT', 'CONNECT'],
     memory,
     readyToVisualize: true,
   }

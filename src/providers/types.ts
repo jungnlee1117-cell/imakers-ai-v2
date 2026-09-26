@@ -1,4 +1,4 @@
-import type { CreativeMemory, DrawingAnalysis } from '../types/creative'
+import type { CreativeMemory, DrawingAnalysis, ResponseElement } from '../types/creative'
 
 export interface ChildResponseContext {
   childMessage: string
@@ -9,6 +9,7 @@ export interface ChildResponseContext {
 
 export interface AIResponse {
   text: string
+  elements: ResponseElement[]
   memory: CreativeMemory
   readyToVisualize: boolean
 }

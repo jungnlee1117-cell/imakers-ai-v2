@@ -111,7 +111,12 @@ function Conversation({ drawing, onBack, onVisualize }: {
       })
       setMemory(response.memory)
       setReady(response.readyToVisualize)
-      setTurns((items) => [...items, { id: crypto.randomUUID(), speaker: 'ai', text: response.text }])
+      setTurns((items) => [...items, {
+        id: crypto.randomUUID(),
+        speaker: 'ai',
+        text: response.text,
+        elements: response.elements,
+      }])
     } finally {
       setThinking(false)
     }
