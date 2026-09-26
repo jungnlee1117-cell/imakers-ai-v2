@@ -1,0 +1,15 @@
+{
+  "name": "iMakers AI V2",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev -- --host 0.0.0.0",
+      "description": "Runs the Vite frontend (port 43127) and Express API (port 43128) together via `npm run dev`."
+    }
+  ],
+  "ports": [
+    { "name": "web", "port": 43127 },
+    { "name": "api", "port": 43128 }
+  ]
+}
