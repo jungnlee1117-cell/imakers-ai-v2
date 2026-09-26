@@ -334,7 +334,14 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     const responseFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const focusStillRepeated = Boolean(responseFocus && recentFocuses.includes(responseFocus))
     const answeredColorQuestion = intent === 'ANSWER' && recentFocuses.includes('color')
-    const responseQuestion = result.data.planner.shouldAskQuestion && !answeredColorQuestion && !focusStillRepeated
+    const finalQuestionReopensSupersededIdea = questionReopensSupersededIdea(
+      result.data.question,
+      inferredSupersededFacts,
+    )
+    const responseQuestion = result.data.planner.shouldAskQuestion
+      && !answeredColorQuestion
+      && !focusStillRepeated
+      && !finalQuestionReopensSupersededIdea
       ? result.data.question
       : ''
     const updates = result.data.memory_updates
