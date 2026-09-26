@@ -64,6 +64,8 @@ export function coachSystemPrompt(memory: CreativeMemory) {
 24. 그림에 아직 없는 새 요소를 아이가 말하면 "아직 그림에는 안 보이지만"처럼 Visual Context와 아이 말을 자연스럽게 비교할 수 있다.
 25. AI가 주요 이야기를 대신 확정하지 않는다. 상상은 가능성이나 선택지로 제시하고 아이가 확인하기 전에는 confirmed_facts에 넣지 않는다.
 26. 아이가 "그려줘", "만들어줘", "이제 해보자"라고 하거나 아이디어가 충분히 구체적이면 planner.shouldCreateNow를 true로 하고 CREATE를 제안한다. 턴 수만으로 CREATE를 결정하지 않는다.
+27. 아이가 말한 감정의 강도를 "엄청", "완전"처럼 임의로 키우지 않는다. 그림 표정과 아이 설명이 다르면 아이의 최신 설명을 따르되 관찰은 조심스럽게 연결한다.
+28. "몰라"에 제공한 선택지는 AI 제안일 뿐이다. 아이가 고르기 전에는 memory_updates의 사실·행동·움직임·세계 규칙에 저장하지 않는다.
 
 현재 Creative Memory:
 ${JSON.stringify(memory, null, 2)}

@@ -106,6 +106,33 @@ function isVisuallyGrounded(parts: string[], features: string[]) {
   })
 }
 
+function findMissingVisualAddition(childInput: string, analysis: z.infer<typeof drawingAnalysisSchema>) {
+  const visible = [
+    ...analysis.visualFeatures,
+    ...analysis.objects.map((object) => object.label),
+    analysis.scene,
+  ].join(' ')
+  return ['선물', '케이크', '가방', '모자', '날개', '별', '집', '구름', '당근']
+    .find((item) => childInput.includes(item) && !visible.includes(item)) || ''
+}
+
+function inferSupersededFacts(childInput: string, facts: string[]) {
+  if (!/^(?:아니|근데\s*사실)/.test(childInput)) return []
+  return facts.filter((fact) => (
+    (/우주/.test(childInput) && /친구.*(?:만나|줄)|만나러/.test(fact))
+    || (/웃/.test(childInput) && /화났|화가|화난/.test(fact))
+  ))
+}
+
+function relatedToSuperseded(value: string, supersededFacts: string[]) {
+  const ignored = new Set(['돼지', '토끼', '중', '중이다', '있다', '한다'])
+  const tokens = (text: string) => (text.match(/[가-힣A-Za-z0-9]+/g) || [])
+    .map((token) => token.replace(/(?:은|는|이|가|을|를|에게|으로|로|에서|에)$/, ''))
+    .filter((token) => token.length >= 2 && !ignored.has(token))
+  const valueTokens = new Set(tokens(value))
+  return supersededFacts.some((fact) => tokens(fact).filter((token) => valueTokens.has(token)).length >= 2)
+}
+
 function normalizeQuestionFocus(focus: string, question: string) {
   const aliases: Record<string, string> = {
     reason: 'goal',
@@ -194,6 +221,18 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       result.data.question,
     ])
     const visualFeatures = body.context.drawingAnalysis.visualFeatures
+    const missingVisualAddition = findMissingVisualAddition(
+      body.context.normalizedChildInput,
+      body.context.drawingAnalysis,
+    )
+    const responseParts = [
+      result.data.reaction,
+      result.data.connection,
+      result.data.suggestion,
+      result.data.question,
+    ]
+    const missingAdditionConnected = !missingVisualAddition
+      || /안\s*보이|보이지\s*않|아직.*없|넣어|더해|추가/.test(responseParts.join(' '))
     const groundedResponse = isVisuallyGrounded([
       result.data.reaction,
       result.data.connection,
@@ -203,7 +242,7 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     const recentFocuses = body.context.memory.questionFocuses.slice(-3)
     const initialFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const repeatedFocus = Boolean(result.data.question && initialFocus && recentFocuses.includes(initialFocus))
-    if (similarQuestion || mechanicalResponse || repeatedFocus || !groundedResponse) {
+    if (similarQuestion || mechanicalResponse || repeatedFocus || !groundedResponse || !missingAdditionConnected) {
       const instructions = [
         similarQuestion
           ? `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하므로 생략하거나 실제 문맥에 필요한 전혀 다른 방향으로 바꿔라.`
@@ -217,11 +256,28 @@ app.post('/api/respond-to-child', async (request, response, next) => {
         !groundedResponse
           ? `현재 그림의 visualFeatures ${JSON.stringify(visualFeatures)} 중 최소 하나를 응답에 자연스럽게 직접 연결하라.`
           : '',
+        !missingAdditionConnected
+          ? `아이가 말한 "${missingVisualAddition}"은 현재 그림 분석에 없다. 아직 그림에는 보이지 않는 새 정보라는 점을 자연스럽게 연결하라.`
+          : '',
       ].filter(Boolean).join(' ')
       result = await provider.respondToChild({
         ...body.context,
         retryInstruction: instructions,
       })
+    }
+    if (
+      missingVisualAddition
+      && !/안\s*보이|보이지\s*않|아직.*없|넣어|더해|추가/.test([
+        result.data.reaction,
+        result.data.connection,
+        result.data.suggestion,
+        result.data.question,
+      ].join(' '))
+    ) {
+      result.data.connection = [
+        result.data.connection,
+        `아직 그림에는 ${missingVisualAddition}이 보이지 않는데, 같이 넣어볼 수 있겠다.`,
+      ].filter(Boolean).join(' ')
     }
     if (!isVisuallyGrounded([
       result.data.reaction,
@@ -239,32 +295,48 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       : ''
     const updates = result.data.memory_updates
     const previous = body.context.memory
-    const supersededFacts = unique(updates.superseded_facts)
+    const noNewCreativeDecision = /^(?:몰라|모르겠어)[.!?\s]*$/.test(body.context.normalizedChildInput)
+    const supersededFacts = unique([
+      ...updates.superseded_facts,
+      ...inferSupersededFacts(body.context.normalizedChildInput, previous.confirmedFacts),
+    ])
     const activeConfirmedFacts = previous.confirmedFacts.filter(
       (fact) => !supersededFacts.some((superseded) => (
         fact === superseded || fact.includes(superseded) || superseded.includes(fact)
       )),
     )
     const memory = {
-      mainSubject: updates.main_subject || previous.mainSubject,
-      confirmedFacts: unique([...activeConfirmedFacts, ...updates.confirmed_facts]),
-      rejectedIdeas: unique([...previous.rejectedIdeas, ...updates.rejected_ideas]),
+      mainSubject: noNewCreativeDecision ? previous.mainSubject : updates.main_subject || previous.mainSubject,
+      confirmedFacts: unique([...activeConfirmedFacts, ...(noNewCreativeDecision ? [] : updates.confirmed_facts)]),
+      rejectedIdeas: unique([...previous.rejectedIdeas, ...(noNewCreativeDecision ? [] : updates.rejected_ideas)]),
       supersededIdeas: unique([...previous.supersededIdeas, ...supersededFacts]),
-      childPreferences: unique([...previous.childPreferences, ...updates.preferences]),
-      mood: updates.mood || previous.mood,
+      childPreferences: unique([...previous.childPreferences, ...(noNewCreativeDecision ? [] : updates.preferences)]),
+      mood: noNewCreativeDecision ? previous.mood : updates.mood || previous.mood,
       askedQuestions: unique([...previous.askedQuestions, responseQuestion]),
-      behaviors: unique([...previous.behaviors, ...updates.behaviors]),
-      movementIdeas: unique([...previous.movementIdeas, ...updates.movement_ideas]),
-      worldRules: unique([...previous.worldRules, ...updates.world_rules]),
+      behaviors: unique([
+        ...previous.behaviors.filter((item) => !relatedToSuperseded(item, supersededFacts)),
+        ...(noNewCreativeDecision ? [] : updates.behaviors),
+      ]),
+      movementIdeas: unique([
+        ...previous.movementIdeas.filter((item) => !relatedToSuperseded(item, supersededFacts)),
+        ...(noNewCreativeDecision ? [] : updates.movement_ideas),
+      ]),
+      worldRules: unique([
+        ...previous.worldRules.filter((item) => !relatedToSuperseded(item, supersededFacts)),
+        ...(noNewCreativeDecision ? [] : updates.world_rules),
+      ]),
       understoodInputs: [...previous.understoodInputs, {
         ...body.context.inputUnderstanding,
       }],
       questionFocuses: responseQuestion && responseFocus
         ? [...previous.questionFocuses, responseFocus].slice(-10)
         : previous.questionFocuses,
-      sceneDescription: updates.scene_description || previous.sceneDescription,
-      characterDescription: updates.character_description || previous.characterDescription,
-      childRequestedAdditions: unique([...previous.childRequestedAdditions, ...updates.child_requested_additions]),
+      sceneDescription: noNewCreativeDecision ? previous.sceneDescription : updates.scene_description || previous.sceneDescription,
+      characterDescription: noNewCreativeDecision ? previous.characterDescription : updates.character_description || previous.characterDescription,
+      childRequestedAdditions: unique([
+        ...previous.childRequestedAdditions,
+        ...(noNewCreativeDecision ? [] : updates.child_requested_additions),
+      ]),
     }
     response.json({
       reaction: result.data.reaction,

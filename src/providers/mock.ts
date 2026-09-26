@@ -54,11 +54,18 @@ function updateMemory(context: ChildResponseContext): CreativeMemory {
   }
   if (/^(?:아니|근데\s*사실)/.test(text)) {
     const superseded = memory.confirmedFacts.filter((fact) => (
-      (/우주/.test(text) && /친구.*만나|만나러|가는\s*중/.test(fact))
+      (/우주/.test(text) && /친구.*(?:만나|줄)|만나러|가는\s*중/.test(fact))
       || (/웃/.test(text) && /화|화났/.test(fact))
     ))
     next.confirmedFacts = memory.confirmedFacts.filter((fact) => !superseded.includes(fact))
     next.supersededIdeas = unique([...memory.supersededIdeas, ...superseded])
+    if (/우주/.test(text)) {
+      next.behaviors = memory.behaviors.filter((item) => !/친구.*만나/.test(item))
+      next.movementIdeas = memory.movementIdeas.filter((item) => !/친구.*만나|걸어가/.test(item))
+    }
+    if (/웃/.test(text)) {
+      next.behaviors = memory.behaviors.filter((item) => !/화/.test(item))
+    }
   }
   const rejection = /싫|빼|없애|안 해|하지 마/.test(text)
 

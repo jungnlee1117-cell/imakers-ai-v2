@@ -202,13 +202,18 @@ test('next-best response accepts a changed direction and supersedes the old deci
   const provider = new MockAIProvider()
   const memory = structuredClone(EMPTY_MEMORY)
   memory.mainSubject = '돼지'
-  memory.confirmedFacts = ['친구를 만나러 가는 중', '선물이 있다']
+  memory.confirmedFacts = ['친구를 만나러 가는 중', '친구에게 줄 선물이 있다', '선물은 케이크다']
+  memory.behaviors = ['친구를 만나러 이동 중']
+  memory.movementIdeas = ['친구를 만나러 걸어가기']
   memory.sceneDescription = '친구를 만나러 가는 길'
   const response = await provider.respondToChild(context('아니, 우주로 갈래', memory, ''))
   assert.match(response.text, /계획이 바뀌|우주/)
   assert.ok(response.memory.supersededIdeas.some((idea) => /친구.*만나/.test(idea)))
   assert.ok(response.memory.confirmedFacts.some((fact) => /우주/.test(fact)))
-  assert.ok(response.memory.confirmedFacts.some((fact) => /선물/.test(fact)))
+  assert.ok(response.memory.confirmedFacts.some((fact) => /케이크/.test(fact)))
+  assert.ok(response.memory.confirmedFacts.every((fact) => !/친구.*줄/.test(fact)))
+  assert.ok(response.memory.behaviors.every((fact) => !/친구.*만나/.test(fact)))
+  assert.ok(response.memory.movementIdeas.every((fact) => !/친구.*만나/.test(fact)))
   assert.equal(response.question, '')
 })
 
