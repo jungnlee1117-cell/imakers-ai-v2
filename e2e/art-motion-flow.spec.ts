@@ -11,7 +11,7 @@ test('draws with tactile tools and animates the finished artwork', async ({ page
 
   const tools = ['연필', '크레파스', '사인펜', '붓']
   for (let index = 0; index < tools.length; index += 1) {
-    const tool = page.getByRole('button', { name: tools[index], exact: true })
+    const tool = page.locator('.material-dock').getByRole('button', { name: tools[index], exact: true })
     await tool.click()
     await expect(tool).toHaveClass(/active/)
     const y = box.y + 120 + index * 42
