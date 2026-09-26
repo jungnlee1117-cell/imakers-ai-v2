@@ -64,7 +64,7 @@ test('draws with tactile tools and animates the finished artwork', async ({ page
   await expect(page.getByRole('heading', { name: '어떤 부분이 움직였으면 좋겠어?' })).toBeVisible()
 
   await page.getByRole('button', { name: /하늘과 구름/ }).click()
-  const jump = page.getByRole('button', { name: '점프', exact: true })
+  const jump = page.locator('.preset-grid button').filter({ hasText: '점프' })
   await jump.click()
   await expect(jump).toHaveClass(/active/)
 
