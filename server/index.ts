@@ -133,6 +133,18 @@ function relatedToSuperseded(value: string, supersededFacts: string[]) {
   return supersededFacts.some((fact) => tokens(fact).filter((token) => valueTokens.has(token)).length >= 2)
 }
 
+function questionReopensSupersededIdea(question: string, supersededFacts: string[]) {
+  if (!question) return false
+  const ignored = new Set(['돼지', '토끼', '친구', '상태', '사실', '지금', '이제'])
+  const tokens = (text: string) => (text.match(/[가-힣A-Za-z0-9]+/g) || [])
+    .map((token) => token.replace(/(?:은|는|이|가|을|를|에게|으로|로|에서|에)$/, ''))
+    .filter((token) => token.length >= 2 && !ignored.has(token))
+  const questionTokens = new Set(tokens(question))
+  return supersededFacts.some((fact) => tokens(fact).some((token) => questionTokens.has(token)))
+    || (supersededFacts.some((fact) => /친구.*(?:만나|줄)|만나러/.test(fact)) && /친구/.test(question))
+    || (supersededFacts.some((fact) => /화났|화가|화난/.test(fact)) && /화/.test(question))
+}
+
 function normalizeQuestionFocus(focus: string, question: string) {
   const aliases: Record<string, string> = {
     reason: 'goal',
@@ -192,6 +204,11 @@ app.post('/api/respond-to-child', async (request, response, next) => {
   try {
     const body = respondRequestSchema.parse(request.body)
     const intent = body.context.inputUnderstanding.intent
+    const noNewCreativeDecision = /^(?:몰라|모르겠어)[.!?\s]*$/.test(body.context.normalizedChildInput)
+    const inferredSupersededFacts = inferSupersededFacts(
+      body.context.normalizedChildInput,
+      body.context.memory.confirmedFacts,
+    )
     if (intent === 'SOCIAL' || intent === 'META_FEEDBACK') {
       const reaction = intent === 'SOCIAL'
         ? '나도 같이 만들어서 재밌었어 😊'
@@ -242,7 +259,18 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     const recentFocuses = body.context.memory.questionFocuses.slice(-3)
     const initialFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const repeatedFocus = Boolean(result.data.question && initialFocus && recentFocuses.includes(initialFocus))
-    if (similarQuestion || mechanicalResponse || repeatedFocus || !groundedResponse || !missingAdditionConnected) {
+    const reopensSupersededIdea = questionReopensSupersededIdea(
+      result.data.question,
+      inferredSupersededFacts,
+    )
+    if (
+      similarQuestion
+      || mechanicalResponse
+      || repeatedFocus
+      || reopensSupersededIdea
+      || !groundedResponse
+      || !missingAdditionConnected
+    ) {
       const instructions = [
         similarQuestion
           ? `새 질문 "${result.data.question}"은 이전 질문 "${similarQuestion}"과 너무 비슷하므로 생략하거나 실제 문맥에 필요한 전혀 다른 방향으로 바꿔라.`
@@ -252,6 +280,9 @@ app.post('/api/respond-to-child', async (request, response, next) => {
           : '',
         repeatedFocus
           ? `질문 focus "${initialFocus}"는 최근 3개 focus ${JSON.stringify(recentFocuses)}와 겹친다. 질문을 생략하거나 실제 문맥에 필요한 다른 focus로 바꿔라.`
+          : '',
+        reopensSupersededIdea
+          ? `아이가 방금 대체한 이전 결정 ${JSON.stringify(inferredSupersededFacts)}을 질문으로 다시 열지 마라. 최신 결정에 짧게 반응하고, 꼭 필요하지 않으면 질문하지 마라.`
           : '',
         !groundedResponse
           ? `현재 그림의 visualFeatures ${JSON.stringify(visualFeatures)} 중 최소 하나를 응답에 자연스럽게 직접 연결하라.`
@@ -287,6 +318,19 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     ], visualFeatures) && visualFeatures[0]) {
       result.data.connection = `그림에서 보인 ${visualFeatures[0]}도 지금 이야기와 이어지네.`
     }
+    if (
+      noNewCreativeDecision
+      && !/(?:완전히\s*)?다른 (?:생각|방법)|새로운 생각|네 생각대로/.test([
+        result.data.reaction,
+        result.data.connection,
+        result.data.suggestion,
+        result.data.question,
+      ].join(' '))
+    ) {
+      result.data.suggestion = [result.data.suggestion, '완전히 다른 생각도 괜찮아.']
+        .filter(Boolean)
+        .join(' ')
+    }
     const responseFocus = normalizeQuestionFocus(result.data.question_focus, result.data.question)
     const focusStillRepeated = Boolean(responseFocus && recentFocuses.includes(responseFocus))
     const answeredColorQuestion = intent === 'ANSWER' && recentFocuses.includes('color')
@@ -295,10 +339,9 @@ app.post('/api/respond-to-child', async (request, response, next) => {
       : ''
     const updates = result.data.memory_updates
     const previous = body.context.memory
-    const noNewCreativeDecision = /^(?:몰라|모르겠어)[.!?\s]*$/.test(body.context.normalizedChildInput)
     const supersededFacts = unique([
       ...updates.superseded_facts,
-      ...inferSupersededFacts(body.context.normalizedChildInput, previous.confirmedFacts),
+      ...inferredSupersededFacts,
     ])
     const activeConfirmedFacts = previous.confirmedFacts.filter(
       (fact) => !supersededFacts.some((superseded) => (
@@ -307,7 +350,14 @@ app.post('/api/respond-to-child', async (request, response, next) => {
     )
     const memory = {
       mainSubject: noNewCreativeDecision ? previous.mainSubject : updates.main_subject || previous.mainSubject,
-      confirmedFacts: unique([...activeConfirmedFacts, ...(noNewCreativeDecision ? [] : updates.confirmed_facts)]),
+      confirmedFacts: unique([
+        ...activeConfirmedFacts,
+        ...(noNewCreativeDecision
+          ? []
+          : updates.confirmed_facts.filter((fact) => !supersededFacts.some((superseded) => (
+            fact === superseded || fact.includes(superseded) || superseded.includes(fact)
+          )))),
+      ]),
       rejectedIdeas: unique([...previous.rejectedIdeas, ...(noNewCreativeDecision ? [] : updates.rejected_ideas)]),
       supersededIdeas: unique([...previous.supersededIdeas, ...supersededFacts]),
       childPreferences: unique([...previous.childPreferences, ...(noNewCreativeDecision ? [] : updates.preferences)]),
