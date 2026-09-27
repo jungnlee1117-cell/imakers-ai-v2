@@ -1,0 +1,6 @@
+class_id,student_id,student_name,date,attended
+EC-KA,S001,김하준,,true
+EC-KA,S002,이서윤,,true
+EC-KB,S003,박도윤,,true
+HN-E1,S004,최지우,2026-10-05,true
+HN-E1,S005,정민준,2026-10-05,false

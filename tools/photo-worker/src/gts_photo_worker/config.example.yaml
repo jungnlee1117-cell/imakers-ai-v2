@@ -1,0 +1,44 @@
+# GTS 수업 사진 분류 워커 설정
+# 상대 경로는 이 파일이 있는 폴더(기본 ~/GTS업무/도구/사진분류) 기준입니다.
+# 장치 토큰은 여기에 쓰지 않습니다. macOS 키체인에 저장하세요 (README 참고).
+
+# Google Drive 앱이 오프라인 동기화한 GTS수업사진 폴더 경로
+drive_root: "~/Library/CloudStorage/GoogleDrive-대표계정@gmail.com/내 드라이브/GTS수업사진"
+
+platform:
+  # local: Phase 1. 수업 판별·명단·동의 상태를 아래 local_data CSV에서 읽고, 업로드하지 않습니다.
+  # api:   Phase 2. gts-platform device API를 사용합니다.
+  mode: local
+  base_url: "https://gts-platform.example.com"
+  keychain_service: "gts-photo-worker"
+  keychain_account: "device-token"
+  timeout_seconds: 30
+
+local_data:
+  teachers_csv: "시간표/선생님.csv"
+  timetable_csv: "시간표/시간표.csv"
+  roster_csv: "시간표/출석명단.csv"
+  consents_csv: "시간표/동의명단.csv"
+
+session_window:
+  before_minutes: 15   # 수업 시작 몇 분 전부터 인정
+  after_minutes: 30    # 수업 종료 몇 분 후까지 인정
+
+face:
+  # SFace 코사인 유사도 기준. Phase 1 테스트 후 `evaluate` 결과로 확정합니다.
+  high_threshold: 0.50   # 이상이면 확정
+  mid_threshold: 0.36    # 이상이면 확인필요(후보 기록), 미만이면 무시
+  min_margin: 0.05       # 1위와 2위 차이가 이보다 작으면 확정하지 않고 확인필요
+  max_candidates: 3
+  det_score_threshold: 0.80
+  min_face_px: 40        # 이보다 작은 얼굴(짧은 변, 업로드 크기 기준)은 판정하지 않음
+  use_coreml: true       # Apple Silicon 가속 (onnxruntime CoreML)
+
+image:
+  max_long_side: 2048
+  jpeg_quality: 90
+
+run:
+  min_file_age_seconds: 60   # 동기화 중인 파일을 건드리지 않도록 최근 수정 파일은 다음 실행으로 미룸
+  max_attempts: 3            # 오류 난 사진 재시도 횟수
+  copy_review_images: true   # 확인필요/ 폴더에 로컬 확인용 복사본(축소·위치정보 제거본) 저장

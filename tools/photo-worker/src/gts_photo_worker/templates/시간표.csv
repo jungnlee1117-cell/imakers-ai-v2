@@ -1,0 +1,4 @@
+session_id,teacher_id,center_id,center_name,class_id,class_name,date,weekday,start_time,end_time
+,T001,C03,엘리트코어,EC-KA,유아A반,,월,16:00,16:50
+,T001,C03,엘리트코어,EC-KB,유아B반,,월,17:00,17:50
+,T002,C01,한남센터,HN-E1,초등1반,2026-10-05,,15:00,16:00

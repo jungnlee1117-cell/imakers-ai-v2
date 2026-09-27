@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gts-photo-worker"
+version = "0.1.0"
+description = "GTS 데일리노트용 맥미니 수업 사진 분류 워커 (Phase 1)"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "opencv-python-headless>=4.8",
+  "onnxruntime>=1.17",
+  "pillow>=10.0",
+  "pillow-heif>=0.16",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+gts-photo-worker = "gts_photo_worker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+gts_photo_worker = ["config.example.yaml", "templates/*.csv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

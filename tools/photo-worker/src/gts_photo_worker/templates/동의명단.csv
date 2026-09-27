@@ -1,0 +1,6 @@
+student_id,face_consent,updated_at,revoked_at
+S001,true,2026-09-01,
+S002,true,2026-09-01,
+S003,false,2026-09-01,
+S004,true,2026-09-15,
+S005,false,2026-09-20,2026-09-20
