@@ -24,3 +24,14 @@ playwright-report
 *.njsproj
 *.sln
 *.sw?
+
+# GTS 사진 워커 로컬 데이터 (아이 사진·얼굴 특징값은 절대 커밋하지 않음)
+faces.db
+*.heic
+*.HEIC
+*.heif
+*.HEIF
+기준사진/
+기록/
+확인필요/
+결과/
