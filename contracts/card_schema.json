@@ -1,44 +1,116 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "lesson-card-v1",
-  "title": "수업 코칭 카드 v1",
+  "$id": "lesson-card-v1.1",
+  "title": "수업 코칭 카드 v1.1 (v1.0 필드는 그대로, area_reviews 추가)",
   "description": "처리 부분(소리 파일 -> 카드)의 출력. 시각은 모두 '초'(숫자). 화면에서 m:ss 로 바꿔 보여 준다.",
   "type": "object",
-  "required": ["schema_version", "lesson", "flow", "interaction", "metrics", "excluded_lines", "practice", "skill_events"],
+  "required": [
+    "schema_version",
+    "lesson",
+    "flow",
+    "interaction",
+    "metrics",
+    "excluded_lines",
+    "practice",
+    "skill_events"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "const": "1.0" },
+    "schema_version": {
+      "enum": [
+        "1.0",
+        "1.1"
+      ]
+    },
     "lesson": {
       "type": "object",
-      "required": ["date", "class_name", "sport", "language_mode", "duration_sec", "source"],
+      "required": [
+        "date",
+        "class_name",
+        "sport",
+        "language_mode",
+        "duration_sec",
+        "source"
+      ],
       "additionalProperties": false,
       "properties": {
-        "date": { "type": "string", "format": "date" },
-        "class_name": { "type": "string" },
-        "sport": { "type": "string", "description": "예: soccer, jumprope" },
-        "language_mode": { "enum": ["english", "korean", "mixed"], "description": "english 일 때만 english_phrases 를 채운다" },
-        "duration_sec": { "type": "integer", "minimum": 1 },
-        "source": { "enum": ["video", "audio"] }
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "class_name": {
+          "type": "string"
+        },
+        "sport": {
+          "type": "string",
+          "description": "예: soccer, jumprope"
+        },
+        "language_mode": {
+          "enum": [
+            "english",
+            "korean",
+            "mixed"
+          ],
+          "description": "english 일 때만 english_phrases 를 채운다"
+        },
+        "duration_sec": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "enum": [
+            "video",
+            "audio"
+          ]
+        }
       }
     },
     "flow": {
       "type": "object",
-      "required": ["lead", "note", "segments"],
+      "required": [
+        "lead",
+        "note",
+        "segments"
+      ],
       "additionalProperties": false,
       "properties": {
-        "lead": { "type": "string" },
-        "note": { "type": "string" },
+        "lead": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
         "segments": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["start_sec", "end_sec", "label", "kind"],
+            "required": [
+              "start_sec",
+              "end_sec",
+              "label",
+              "kind"
+            ],
             "additionalProperties": false,
             "properties": {
-              "start_sec": { "type": "integer", "minimum": 0 },
-              "end_sec": { "type": "integer", "minimum": 0 },
-              "label": { "type": "string" },
-              "kind": { "enum": ["main", "normal", "control"], "description": "main=아이들이 움직인 활동, normal=설명·준비·정리, control=훈육·재정비" }
+              "start_sec": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end_sec": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "label": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "main",
+                  "normal",
+                  "control"
+                ],
+                "description": "main=아이들이 움직인 활동, normal=설명·준비·정리, control=훈육·재정비"
+              }
             }
           }
         }
@@ -46,22 +118,49 @@
     },
     "english_phrases": {
       "type": "object",
-      "required": ["note", "items"],
+      "required": [
+        "note",
+        "items"
+      ],
       "additionalProperties": false,
       "properties": {
-        "note": { "type": "string" },
+        "note": {
+          "type": "string"
+        },
         "items": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["at_sec", "heard", "suggested", "reason", "type"],
+            "required": [
+              "at_sec",
+              "heard",
+              "suggested",
+              "reason",
+              "type"
+            ],
             "additionalProperties": false,
             "properties": {
-              "at_sec": { "type": "integer", "minimum": 0 },
-              "heard": { "type": "string" },
-              "suggested": { "type": "string" },
-              "reason": { "type": "string" },
-              "type": { "enum": ["error", "tip", "check"], "description": "error=문장 오류, tip=다듬기, check=확인 필요(음성인식 의심)" }
+              "at_sec": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "heard": {
+                "type": "string"
+              },
+              "suggested": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "error",
+                  "tip",
+                  "check"
+                ],
+                "description": "error=문장 오류, tip=다듬기, check=확인 필요(음성인식 의심)"
+              }
             }
           }
         }
@@ -69,40 +168,107 @@
     },
     "interaction": {
       "type": "object",
-      "required": ["good", "improve"],
+      "required": [
+        "good",
+        "improve"
+      ],
       "additionalProperties": false,
       "properties": {
-        "good": { "type": "array", "items": { "$ref": "#/$defs/scene" } },
-        "improve": { "type": "array", "items": { "$ref": "#/$defs/scene" } }
+        "good": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scene"
+          }
+        },
+        "improve": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scene"
+          }
+        }
       }
     },
     "plan_adherence": {
       "type": "object",
-      "required": ["status"],
+      "required": [
+        "status"
+      ],
       "additionalProperties": false,
       "properties": {
-        "status": { "enum": ["not_linked", "done"] },
-        "planned": { "type": "array", "items": { "type": "string" } },
-        "actual": { "type": "array", "items": { "type": "string" } },
-        "missing": { "type": "array", "items": { "type": "string" } },
-        "note": { "type": "string" }
+        "status": {
+          "enum": [
+            "not_linked",
+            "done"
+          ]
+        },
+        "planned": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actual": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
       }
     },
     "metrics": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "label", "value", "unit", "better", "tolerance", "compare"],
+        "required": [
+          "id",
+          "label",
+          "value",
+          "unit",
+          "better",
+          "tolerance",
+          "compare"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string" },
-          "label": { "type": "string" },
-          "value": { "type": "number" },
-          "unit": { "type": "string" },
-          "better": { "enum": ["up", "down"] },
-          "tolerance": { "type": "number", "minimum": 0, "description": "이 값 안쪽의 차이는 '비슷해요'" },
-          "sub": { "type": "string" },
-          "compare": { "type": "boolean", "description": "false 이면 이전 수업과 비교하지 않는다" }
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "better": {
+            "enum": [
+              "up",
+              "down"
+            ]
+          },
+          "tolerance": {
+            "type": "number",
+            "minimum": 0,
+            "description": "이 값 안쪽의 차이는 '비슷해요'"
+          },
+          "sub": {
+            "type": "string"
+          },
+          "compare": {
+            "type": "boolean",
+            "description": "false 이면 이전 수업과 비교하지 않는다"
+          }
         }
       }
     },
@@ -110,11 +276,19 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["at_sec", "reason"],
+        "required": [
+          "at_sec",
+          "reason"
+        ],
         "additionalProperties": false,
         "properties": {
-          "at_sec": { "type": "integer", "minimum": 0 },
-          "reason": { "type": "string" }
+          "at_sec": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string"
+          }
         }
       }
     },
@@ -122,13 +296,27 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "say", "why", "is_task"],
+        "required": [
+          "id",
+          "say",
+          "why",
+          "is_task"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string" },
-          "say": { "type": "string" },
-          "why": { "type": "string" },
-          "is_task": { "type": "boolean", "description": "true 이면 소리 내어 읽는 연습이 아니라 수업 후 체크하는 과제" }
+          "id": {
+            "type": "string"
+          },
+          "say": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          },
+          "is_task": {
+            "type": "boolean",
+            "description": "true 이면 소리 내어 읽는 연습이 아니라 수업 후 체크하는 과제"
+          }
         }
       }
     },
@@ -137,12 +325,66 @@
       "description": "쌓인 기술에 더할 표현. 같은 선생님의 이전 수업에 이미 있으면 앱이 중복을 걸러낸다.",
       "items": {
         "type": "object",
-        "required": ["skill_id", "expression", "at_sec"],
+        "required": [
+          "skill_id",
+          "expression",
+          "at_sec"
+        ],
         "additionalProperties": false,
         "properties": {
-          "skill_id": { "enum": ["praise", "rule_as_question", "child_care"] },
-          "expression": { "type": "string" },
-          "at_sec": { "type": "integer", "minimum": 0 }
+          "skill_id": {
+            "enum": [
+              "praise",
+              "rule_as_question",
+              "child_care"
+            ]
+          },
+          "expression": {
+            "type": "string"
+          },
+          "at_sec": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "area_reviews": {
+      "type": "array",
+      "description": "영역마다 잘한 점 → 개선할 점(근거·실천 예시 포함). 영역당 각 0~2개. 개선할 점이 없으면 비운다.",
+      "items": {
+        "type": "object",
+        "required": [
+          "area",
+          "good",
+          "improve"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "enum": [
+              "flow",
+              "english",
+              "interaction",
+              "discipline",
+              "safety",
+              "plan"
+            ]
+          },
+          "good": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/$defs/finding"
+            }
+          },
+          "improve": {
+            "type": "array",
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/$defs/finding_improve"
+            }
+          }
         }
       }
     }
@@ -150,13 +392,126 @@
   "$defs": {
     "scene": {
       "type": "object",
-      "required": ["title", "at_sec", "text"],
+      "required": [
+        "title",
+        "at_sec",
+        "text"
+      ],
       "additionalProperties": false,
       "properties": {
-        "title": { "type": "string" },
-        "at_sec": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1 },
-        "text": { "type": "string" }
+        "title": {
+          "type": "string"
+        },
+        "at_sec": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "at_sec",
+        "quote"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "at_sec": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 3,
+          "description": "전사본에 실제로 있는 말(아이 이름은 [아이])"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "title",
+        "text",
+        "evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    "finding_improve": {
+      "type": "object",
+      "required": [
+        "title",
+        "text",
+        "evidence",
+        "example"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "example": {
+          "type": "object",
+          "required": [
+            "say",
+            "why"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "say": {
+              "type": "string"
+            },
+            "why": {
+              "type": "string"
+            }
+          }
+        }
       }
     }
+  },
+  "if": {
+    "properties": {
+      "schema_version": {
+        "const": "1.1"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "area_reviews"
+    ]
   }
 }

@@ -44,7 +44,8 @@ test('the local band returns one schema-valid card and does not send audio', asy
     assert.equal(output.card.lesson.date, '2026-10-25')
     assert.equal(output.card.lesson.language_mode, 'english')
     assert.deepEqual(output.card.plan_adherence, { status: 'not_linked' })
-    assert.equal(output.card.schema_version, '1.0')
+    assert.equal(output.card.schema_version, '1.1')
+    assert.deepEqual(output.card.area_reviews?.map((review) => review.area), ['flow', 'english', 'interaction', 'discipline', 'safety'])
     assert.equal(output.card.lesson.duration_sec, 1527)
     assert.equal(output.card.metrics.find((metric) => metric.id === 'praise')?.value, 4)
     assert.equal(output.card.metrics.find((metric) => metric.id === 'rule')?.label, '규칙을 질문으로 물은 횟수')
@@ -76,6 +77,8 @@ test('english phrases are omitted unless the language mode is english, and a pla
   })
   assertValidCard(korean.card)
   assert.equal('english_phrases' in korean.card, false)
+  assert.equal(korean.card.area_reviews?.some((review) => review.area === 'english'), false)
+  assert.equal(korean.card.area_reviews?.some((review) => review.area === 'plan'), false)
   assert.equal(korean.card.plan_adherence?.status, 'done')
   if (korean.card.plan_adherence?.status === 'done') {
     assert.deepEqual(korean.card.plan_adherence.planned, ['Greeting circle', 'Picture talk'])

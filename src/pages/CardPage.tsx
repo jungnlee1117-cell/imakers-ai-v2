@@ -1,7 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, type CardDocument, type TranscriptLine } from '../api.ts'
+import { api, type AreaReview, type CardDocument, type TranscriptLine } from '../api.ts'
 import { formatClock, languageLabel, sportLabel } from '../format.ts'
 
+const AREA_ORDER = ['flow', 'english', 'interaction', 'discipline', 'safety', 'plan'] as const
+const AREA_LABEL: Record<(typeof AREA_ORDER)[number], string> = {
+  flow: '수업 흐름',
+  english: '영어 표현',
+  interaction: '아이와의 상호작용',
+  discipline: '훈육',
+  safety: '안전·주목',
+  plan: '계획안',
+}
 const KIND_LABEL = { main: '움직임', normal: '설명·정리', control: '훈육·재정비' }
 const PHRASE_LABEL = { error: '문장 오류', tip: '다듬기', check: '확인 필요' }
 const SKILL_LABEL: Record<string, string> = {
@@ -63,7 +72,9 @@ export default function CardPage({ id, role, onChanged }: { id: string; role: st
     )
   }
 
-  const total = card.flow.segments.reduce((sum, segment) => sum + Math.max(1, segment.end_sec - segment.start_sec), 0)
+  const areaCards = card.schema_version === '1.1'
+    ? AREA_ORDER.flatMap((area) => card.area_reviews?.filter((review) => review.area === area) ?? [])
+    : []
 
   return (
     <section className="stack">
@@ -77,52 +88,53 @@ export default function CardPage({ id, role, onChanged }: { id: string; role: st
       <audio ref={audioRef} controls preload="metadata" src={audioUrl ?? undefined} />
       <p className="muted">시각을 누르면 그 지점부터 재생됩니다.</p>
 
-      <article className="card stack">
-        <h2>수업 흐름</h2>
-        <p>{card.flow.lead}</p>
-        <div className="flow">
-          {card.flow.segments.map((segment) => (
-            <button
-              key={`${segment.start_sec}-${segment.label}`}
-              className={`kind-${segment.kind}`}
-              style={{ flex: Math.max(1, segment.end_sec - segment.start_sec) / total }}
-              onClick={() => seek(segment.start_sec)}
-            >
-              <small>{formatClock(segment.start_sec)} · {KIND_LABEL[segment.kind]}</small>
-              {segment.label}
-            </button>
-          ))}
-        </div>
-        <p>{card.flow.note}</p>
-      </article>
-
-      {card.english_phrases && (
-        <article className="card stack">
-          <h2>영어 표현 다듬기</h2>
-          <p>{card.english_phrases.note}</p>
-          {card.english_phrases.items.map((item) => (
-            <div key={`${item.at_sec}-${item.heard}`}>
-              <button className="time" onClick={() => seek(item.at_sec)}>{formatClock(item.at_sec)}</button>
-              <span className="pill">{PHRASE_LABEL[item.type]}</span>
-              <p>들은 말: {item.heard}</p>
-              <p>제안: {item.suggested}</p>
-              <p className="muted">{item.reason}</p>
-            </div>
-          ))}
-        </article>
+      {areaCards.length === 0 && (
+        <>
+          <article className="card stack">
+            <h2>수업 흐름</h2>
+            <FlowBar card={card} onSeek={seek} />
+          </article>
+          {card.english_phrases && (
+            <article className="card stack">
+              <h2>영어 표현 다듬기</h2>
+              <p>{card.english_phrases.note}</p>
+              {card.english_phrases.items.map((item) => (
+                <div key={`${item.at_sec}-${item.heard}`}>
+                  <button className="time" onClick={() => seek(item.at_sec)}>{formatClock(item.at_sec)}</button>
+                  <span className="pill">{PHRASE_LABEL[item.type]}</span>
+                  <p>들은 말: {item.heard}</p>
+                  <p>제안: {item.suggested}</p>
+                  <p className="muted">{item.reason}</p>
+                </div>
+              ))}
+            </article>
+          )}
+          <article className="card stack">
+            <h2>아이와의 상호작용·훈육</h2>
+            <h3>이어가 보면 좋은 장면</h3>
+            {card.interaction.good.map((scene) => (
+              <Scene key={scene.title} scene={scene} onSeek={seek} />
+            ))}
+            <h3>이렇게 해 보면 좋아요</h3>
+            {card.interaction.improve.map((scene) => (
+              <Scene key={scene.title} scene={scene} onSeek={seek} />
+            ))}
+          </article>
+        </>
       )}
 
-      <article className="card stack">
-        <h2>아이와의 상호작용·훈육</h2>
-        <h3>이어가 보면 좋은 장면</h3>
-        {card.interaction.good.map((scene) => (
-          <Scene key={scene.title} scene={scene} onSeek={seek} />
-        ))}
-        <h3>이렇게 해 보면 좋아요</h3>
-        {card.interaction.improve.map((scene) => (
-          <Scene key={scene.title} scene={scene} onSeek={seek} />
-        ))}
-      </article>
+      {areaCards.map((review) => (
+        <article key={review.area} className="card stack">
+          <h2>{AREA_LABEL[review.area]}</h2>
+          {review.area === 'flow' && <FlowBar card={card} onSeek={seek} />}
+          {review.good.map((finding) => (
+            <Finding key={finding.title} finding={finding} onSeek={seek} />
+          ))}
+          {review.improve.map((finding) => (
+            <Finding key={finding.title} finding={finding} onSeek={seek} />
+          ))}
+        </article>
+      ))}
 
       <article className="card stack">
         <h2>계획안 대로</h2>
@@ -192,6 +204,55 @@ export default function CardPage({ id, role, onChanged }: { id: string; role: st
         ))}
       </article>
     </section>
+  )
+}
+
+function FlowBar({ card, onSeek }: { card: CardDocument; onSeek: (seconds: number) => void }) {
+  const total = card.flow.segments.reduce((sum, segment) => sum + Math.max(1, segment.end_sec - segment.start_sec), 0)
+  return (
+    <>
+      <p>{card.flow.lead}</p>
+      <div className="flow">
+        {card.flow.segments.map((segment) => (
+          <button
+            key={`${segment.start_sec}-${segment.label}`}
+            className={`kind-${segment.kind}`}
+            style={{ flex: Math.max(1, segment.end_sec - segment.start_sec) / total }}
+            onClick={() => onSeek(segment.start_sec)}
+          >
+            <small>{formatClock(segment.start_sec)} · {KIND_LABEL[segment.kind]}</small>
+            {segment.label}
+          </button>
+        ))}
+      </div>
+      <p>{card.flow.note}</p>
+    </>
+  )
+}
+
+function Finding({ finding, onSeek }: { finding: AreaReview['good'][number] | AreaReview['improve'][number]; onSeek: (seconds: number) => void }) {
+  const example = 'example' in finding ? finding.example : undefined
+  return (
+    <div className="finding">
+      <strong>{finding.title}</strong>
+      <p>{finding.text}</p>
+      <div className="stack">
+        <span className="muted">근거</span>
+        {finding.evidence.map((item) => (
+          <p key={`${item.at_sec}-${item.quote}`}>
+            <button className="time" onClick={() => onSeek(item.at_sec)}>{formatClock(item.at_sec)}</button>
+            {' '}{item.quote}
+          </p>
+        ))}
+      </div>
+      {example && (
+        <div className="stack">
+          <h3>이렇게 말해 보세요</h3>
+          <p>{example.say}</p>
+          <p className="muted">{example.why}</p>
+        </div>
+      )}
+    </div>
   )
 }
 

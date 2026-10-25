@@ -33,7 +33,7 @@ npm run typecheck
 
 카드 약속은 `process/card_schema.json` 입니다. `contracts/card_schema.json` 은 같은 파일이어야 합니다. `process/process.py` 의 `features`, `merge`, `run` 이 처리 구현이고, `server/card/process-steps.ts` 가 그 세 명령을 그대로 호출합니다. `run` 은 전사기와 API를 실제로 부르므로, 지금은 호출하지 않고 성공한 결과를 만들지 않습니다.
 
-지금 기본 처리기는 `local-band` 입니다. 스키마를 통과한 `process/card_b_auto.json` 을 고정 출력으로 돌려줍니다. 수업 날짜·반·종목·언어·영상/음성 여부와, 이 앱에 올린 계획안 텍스트만 입력에 맞춥니다. 올린 소리는 읽지 않고, 밖으로 보내지 않습니다. 다른 처리기 이름을 넣으면 연결하지 않고 거절합니다.
+지금 기본 처리기는 `local-band` 입니다. 스키마를 통과한 `process/card_example_B_v1_1.json` 을 고정 출력으로 돌려줍니다. `schema_version` 이 1.1 이면 화면은 `area_reviews` 로 영역별 카드를 그립니다. 수업 날짜·반·종목·언어·영상/음성 여부와, 이 앱에 올린 계획안 텍스트만 입력에 맞춥니다. 올린 소리는 읽지 않고, 밖으로 보내지 않습니다. 다른 처리기 이름을 넣으면 연결하지 않고 거절합니다.
 
 `features` 와 `merge` 를 직접 돌리려면 `process/requirements.txt` 의 패키지가 필요합니다. `run` 은 그 위에 전사기와 API 키가 있어야 하며, 이 앱은 그 경로를 켜 두지 않습니다.
 

@@ -7,7 +7,7 @@ import { assertValidCard } from './validate.js'
 import type { CardDocument, LessonProcessor, ProcessorInput, ProcessorOutput, TranscriptLineOut } from './types.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const fixedCard = JSON.parse(readFileSync(join(here, '../../process/card_b_auto.json'), 'utf8')) as CardDocument
+const fixedCard = JSON.parse(readFileSync(join(here, '../../process/card_example_B_v1_1.json'), 'utf8')) as CardDocument
 const fixedLines = JSON.parse(readFileSync(join(here, '../../process/transcript_lines_b.json'), 'utf8')) as Array<{
   start_sec: number
   text: string
@@ -24,7 +24,7 @@ function planLines(planText: string) {
 
 /**
  * 지금 기본 경로. process.py run 의 API를 호출하거나 흉내 내지 않고,
- * 스키마를 통과한 card_b_auto.json 을 고정 출력으로 돌려준다.
+ * 스키마를 통과한 card_example_B_v1_1.json 을 고정 출력으로 돌려준다.
  * 날짜·반·종목·언어·출처와, 이 앱에 올린 계획안 텍스트만 입력에 맞춘다.
  */
 export const localBandProcessor: LessonProcessor = {
@@ -43,6 +43,7 @@ export const localBandProcessor: LessonProcessor = {
     if (input.languageMode !== 'english') {
       delete card.english_phrases
       card.metrics = card.metrics.filter((metric) => metric.id !== 'gr')
+      if (card.area_reviews) card.area_reviews = card.area_reviews.filter((review) => review.area !== 'english')
     }
     const planned = input.planText ? planLines(input.planText) : []
     card.plan_adherence = planned.length

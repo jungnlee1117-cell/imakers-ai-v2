@@ -73,8 +73,22 @@ export type TranscriptLine = {
   teacher_check: 'unconfirmed' | 'confirmed' | 'rejected'
 }
 
+export type ReviewArea = 'flow' | 'english' | 'interaction' | 'discipline' | 'safety' | 'plan'
+
+export type AreaReview = {
+  area: ReviewArea
+  good: Array<{ title: string; text: string; evidence: Array<{ at_sec: number; quote: string }> }>
+  improve: Array<{
+    title: string
+    text: string
+    evidence: Array<{ at_sec: number; quote: string }>
+    example: { say: string; why: string }
+  }>
+}
+
 export type CardDocument = {
-  schema_version: '1.0'
+  schema_version: '1.0' | '1.1'
+  area_reviews?: AreaReview[]
   lesson: {
     date: string
     class_name: string

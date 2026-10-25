@@ -40,9 +40,30 @@ test('features and merge call process.py and do not invent a run result', async 
     wait_segments: 0,
     question_segments: 0,
     english_phrases: { note: '없음', items: [] },
+    area_reviews: [
+      {
+        area: 'interaction',
+        good: [{
+          title: '바로 칭찬',
+          text: '짧은 칭찬이 있었습니다.',
+          evidence: [{ at_sec: 0, quote: 'Good job team' }],
+        }],
+        improve: [{
+          title: '없는 인용',
+          text: '전사본에 없는 말입니다.',
+          evidence: [{ at_sec: 0, quote: 'purple balloons in the hallway' }],
+          example: { say: 'Line up.', why: '짧게' },
+        }],
+      },
+    ],
   }))
   await processSteps.merge({ workDir, analysisPath, outPath: cardPath })
-  assertValidCard(JSON.parse(await readFile(cardPath, 'utf8')))
+  const card = JSON.parse(await readFile(cardPath, 'utf8')) as { schema_version: string; area_reviews: Array<{ improve: unknown[] }> }
+  assertValidCard(card)
+  assert.equal(card.schema_version, '1.1')
+  assert.equal(card.area_reviews[0]?.improve.length, 0)
+  const dropped = JSON.parse(await readFile(`${cardPath}.dropped.json`, 'utf8')) as Array<{ title: string }>
+  assert.equal(dropped.some((item) => item.title === '없는 인용'), true)
 
   const audioPath = join(dir, 'audio.m4a')
   await writeFile(audioPath, Buffer.from('not-sent'))

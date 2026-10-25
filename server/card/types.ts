@@ -47,6 +47,31 @@ export type SkillEvent = {
   at_sec: number
 }
 
+export type ReviewArea = 'flow' | 'english' | 'interaction' | 'discipline' | 'safety' | 'plan'
+
+export type ReviewEvidence = {
+  at_sec: number
+  quote: string
+}
+
+export type ReviewExample = {
+  say: string
+  why: string
+}
+
+export type ReviewFinding = {
+  title: string
+  text: string
+  evidence: ReviewEvidence[]
+  example?: ReviewExample
+}
+
+export type AreaReview = {
+  area: ReviewArea
+  good: ReviewFinding[]
+  improve: Array<ReviewFinding & { example: ReviewExample }>
+}
+
 export type PlanAdherence =
   | { status: 'not_linked' }
   | {
@@ -59,7 +84,8 @@ export type PlanAdherence =
 
 /** 처리 부분이 앱에 넘기는 카드 한 장. 화면은 이 객체만 읽는다. */
 export type CardDocument = {
-  schema_version: '1.0'
+  schema_version: '1.0' | '1.1'
+  area_reviews?: AreaReview[]
   lesson: {
     date: string
     class_name: string

@@ -158,7 +158,9 @@ def build_prompt(meta, lines, feats, plan_path):
 {{
  "flow": {{"note": "수업 흐름에 대한 한두 문장", "segments": [{{"start_sec": 0, "end_sec": 145, "label": "...", "kind": "main|normal|control"}}]}},
  "english_phrases": {{"note": "...", "items": [{{"at_sec": 0, "heard": "...", "suggested": "...", "reason": "...", "type": "error|tip|check"}}]}},
- "interaction": {{"good": [{{"title": "...", "at_sec": [0], "text": "..."}}], "improve": [{{"title": "...", "at_sec": [0], "text": "..."}}]}},
+ "area_reviews": [{{"area": "flow|english|interaction|discipline|safety{'|plan' if plan else ''}",
+   "good": [{{"title": "...", "text": "...", "evidence": [{{"at_sec": 0, "quote": "전사본에 있는 말 그대로"}}]}}],
+   "improve": [{{"title": "...", "text": "...", "evidence": [{{"at_sec": 0, "quote": "..."}}], "example": {{"say": "바로 써 볼 말이나 방법", "why": "왜 좋은지"}}}}]}}],
  "child_care_expressions": [{{"expression": "...", "at_sec": 0}}],
  "practice": [{{"id": "s1", "say": "...", "why": "...", "is_task": false}}],
  "extra_excluded": [{{"at_sec": 0, "reason": "..."}}],
@@ -166,13 +168,53 @@ def build_prompt(meta, lines, feats, plan_path):
  "question_segments": 0{', "plan_adherence": {"status": "done", "planned": [], "actual": [], "missing": [], "note": ""}' if plan else ''}
 }}
 - segments 는 처음(0초)부터 마지막까지 빈틈 없이 이어 쓴다. kind: main=아이들이 움직인 활동, normal=설명·준비·정리, control=훈육·재정비.
-- interaction.good 3~5개, improve 2~3개. practice 3~4개(마지막 하나는 수업 뒤 체크하는 과제여도 좋다).
+- area_reviews: 영역마다 잘한 점 0~2개, 개선할 점 0~2개. 개선할 점이 없으면 비워 둔다(억지로 채우지 않는다). 영역: flow=수업 흐름, english=영어 표현, interaction=아이와의 상호작용, discipline=훈육, safety=안전·주목.
+- 모든 항목에는 evidence(근거)가 1~3개 있어야 한다. quote 는 전사본의 말을 그대로(조금 줄여도 됨) 옮기고, at_sec 은 그 말이 있는 줄의 시각이다. 전사본에 없는 말을 쓰면 그 항목은 카드에서 빠진다.
+- 개선할 점에는 반드시 example(바로 써 볼 말이나 방법)을 붙인다. "<<믿기 어려운 줄>>"은 근거로 쓰지 않는다.
+- practice 3~4개(마지막 하나는 수업 뒤 체크하는 과제여도 좋다).
 - child_care_expressions: 아이 상태를 묻거나 기분을 받아 주거나 기다릴 시간을 알려 주는 말(전사본에 있는 그대로).
 - wait_segments: 같은 대기·정지 지시가 반복된 구간 수. question_segments: 아이 반응을 끌어낸 질문 구간 수.
 {('## 월간 계획안'+chr(10)+plan) if plan else ''}
 ## 전사본
 {tr}
 """
+
+
+# ---------- 근거 검증 ----------
+def _norm(t):
+    t = t.lower().replace("(…반복)", " ").replace("…", " ")
+    t = re.sub(r"[^0-9a-z가-힣\[\]아이]+", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+def evidence_ok(lines, ev):
+    """근거로 쓴 말이 그 시각 근처의 전사본에 실제로 있는지."""
+    at = ev["at_sec"]
+    near = [l for l in lines if at - 8 <= l["start_sec"] <= at + 3]
+    prev = [l for l in lines if l["start_sec"] <= at]
+    if prev and prev[-1] not in near:
+        near.append(prev[-1])
+    blob = _norm(" ".join(l["text"] for l in sorted(near, key=lambda l: l["start_sec"])))
+    q = _norm(ev["quote"])
+    return bool(q) and q in blob
+
+def pieces_ok(lines, at, text):
+    """'…'로 줄인 인용도 조각마다 확인한다."""
+    parts = [p for p in re.split(r"…|\.\.\.", text) if len(_norm(p).split()) >= 2]
+    return bool(parts) and all(evidence_ok(lines, {"at_sec": at, "quote": p}) for p in parts)
+
+def verify_reviews(reviews, lines, dropped):
+    out = []
+    for r in reviews:
+        nr = {"area": r["area"], "good": [], "improve": []}
+        for kind in ("good", "improve"):
+            for f in r.get(kind, []):
+                ok = [e for e in f["evidence"] if evidence_ok(lines, e)]
+                if not ok:
+                    dropped.append({"area": r["area"], "kind": kind, "title": f["title"], "reason": "근거로 쓴 말이 전사본에 없음"})
+                    continue
+                nr[kind].append({**f, "evidence": ok})
+        out.append(nr)
+    return out
 
 # ---------- merge 단계 ----------
 def kind_len(segs, k): return sum(s["end_sec"] - s["start_sec"] for s in segs if s["kind"] == k)
@@ -188,6 +230,20 @@ def cmd_merge(a):
         if isinstance(x, dict): return {k: walk(v) for k, v in x.items()}
         return x
     an = walk(an)
+    lines = json.load(open(work / "transcript_lines.json", encoding="utf-8"))
+    dropped = []
+    if "area_reviews" in an:
+        an["area_reviews"] = verify_reviews(an["area_reviews"], lines, dropped)
+        # v1.0 화면이 읽는 interaction 은 area_reviews 에서 만든다(상호작용·훈육·안전)
+        scenes = lambda kind: [{"title": f["title"], "at_sec": [e["at_sec"] for e in f["evidence"]], "text": f["text"]}
+                               for r in an["area_reviews"] if r["area"] in ("interaction", "discipline", "safety") for f in r[kind]]
+        an["interaction"] = {"good": scenes("good"), "improve": scenes("improve")}
+    if "english_phrases" in an:
+        for it in an["english_phrases"]["items"]:
+            if it["type"] != "check" and not pieces_ok(lines, it["at_sec"], it["heard"]):
+                it["type"] = "check"
+                it["reason"] = "전사본에서 이 말을 찾지 못했습니다. 직접 확인해 주세요. " + it["reason"]
+                dropped.append({"area": "english", "kind": "downgraded_to_check", "title": it["heard"][:40], "reason": "heard 가 전사본에 없음"})
     segs = an["flow"]["segments"]
     total = sum(s["end_sec"] - s["start_sec"] for s in segs)
     moved = kind_len(segs, "main")
@@ -209,7 +265,7 @@ def cmd_merge(a):
             [{"skill_id": "rule_as_question", **e} for e in F["rule_unique"]] + \
             [{"skill_id": "child_care", **e} for e in an.get("child_care_expressions", [])]
     card = {
-        "schema_version": "1.0",
+        "schema_version": "1.1" if "area_reviews" in an else "1.0",
         "lesson": {"date": meta["date"], "class_name": meta["class_name"], "sport": meta["sport"],
                    "language_mode": meta["language_mode"], "duration_sec": meta["duration_sec"], "source": meta["source"]},
         "flow": {"lead": lead, "note": an["flow"]["note"], "segments": segs},
@@ -220,6 +276,11 @@ def cmd_merge(a):
         "practice": an["practice"],
         "skill_events": skill,
     }
+    if "area_reviews" in an:
+        card["area_reviews"] = an["area_reviews"]
+    if dropped:
+        json.dump(dropped, open(str(a.out) + ".dropped.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        print("근거 검증에서 빠지거나 낮춘 항목:", len(dropped))
     if meta.get("language_mode") == "english" and "english_phrases" in an:
         card["english_phrases"] = an["english_phrases"]
     jsonschema.validate(card, SCHEMA, format_checker=jsonschema.FormatChecker())

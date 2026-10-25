@@ -1,0 +1,14 @@
+[
+ {
+  "area": "discipline",
+  "kind": "improve",
+  "title": "(시험용) 없는 말 인용",
+  "reason": "근거로 쓴 말이 전사본에 없음"
+ },
+ {
+  "area": "english",
+  "kind": "downgraded_to_check",
+  "title": "I did not say this sentence",
+  "reason": "heard 가 전사본에 없음"
+ }
+]
