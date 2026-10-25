@@ -1,122 +1,116 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import { api, go, type Session } from './api.ts'
+import { billingLabel, roleLabel } from './format.ts'
+import AccessPage from './pages/AccessPage.tsx'
+import AuthPage from './pages/AuthPage.tsx'
+import CardPage from './pages/CardPage.tsx'
+import ChangesPage from './pages/ChangesPage.tsx'
+import HomePage from './pages/HomePage.tsx'
+import PlansPage from './pages/PlansPage.tsx'
+import PracticePage from './pages/PracticePage.tsx'
+import SkillsPage from './pages/SkillsPage.tsx'
+import TeachersPage from './pages/TeachersPage.tsx'
+import UploadPage from './pages/UploadPage.tsx'
 
-function App() {
-  const [count, setCount] = useState(0)
+function pathOf() {
+  return (window.location.hash.replace(/^#/, '') || '/').split('?')[0]
+}
+
+export default function App() {
+  const [session, setSession] = useState<Session | null>(null)
+  const [ready, setReady] = useState(false)
+  const [route, setRoute] = useState(pathOf())
+
+  async function refresh() {
+    try {
+      setSession(await api<Session>('/api/me'))
+    } catch {
+      setSession(null)
+    } finally {
+      setReady(true)
+    }
+  }
+
+  useEffect(() => {
+    void refresh()
+    const onHash = () => setRoute(pathOf())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  if (!ready) return <main className="page">불러오는 중</main>
+  if (!session) return <AuthPage onDone={() => { go('/'); void refresh() }} />
+
+  const role = session.role
+  const activeMemberships = session.memberships.filter((item) => item.status === 'active')
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+      <header className="app-header">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <div className="brand">수업 코칭</div>
+          <div className="muted">
+            {session.organization?.name} · {roleLabel(role ?? '')}
+            {session.organization ? ` · ${billingLabel(session.organization.billingTier)}` : ''}
+            {session.organization?.billingTier === 'paid' ? ' · 결제 연결 없음' : ''}
+          </div>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        <div className="row">
+          {activeMemberships.length > 1 && (
+            <select
+              value={session.organization?.id}
+              onChange={(event) => {
+                void api('/api/session/organization', {
+                  method: 'POST',
+                  body: JSON.stringify({ organizationId: event.target.value }),
+                }).then(() => refresh())
+              }}
+            >
+              {activeMemberships.map((item) => (
+                <option key={item.organizationId} value={item.organizationId}>{item.organizationName}</option>
+              ))}
+            </select>
+          )}
+          <button className="ghost" onClick={() => { void api('/api/auth/logout', { method: 'POST' }).then(() => refresh()) }}>로그아웃</button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      </header>
+      {role === 'pending' ? (
+        <main className="page">
+          <section className="panel">
+            <h1>승인 대기</h1>
+            <p>GTS 소속은 대표가 초대하거나 승인한 뒤에 들어올 수 있습니다.</p>
+          </section>
+        </main>
+      ) : (
+        <>
+          <nav className="page">
+            {role === 'teacher' && (
+              <>
+                <a href="#/">홈</a>
+                <a href="#/upload">업로드</a>
+                <a href="#/plans">계획안</a>
+                <a href="#/practice">오늘의 연습</a>
+                <a href="#/skills">쌓인 기술</a>
+                <a href="#/changes">변화 보기</a>
+              </>
+            )}
+            {(role === 'representative' || role === 'admin') && <a href="#/teachers">선생님 목록</a>}
+            {role === 'representative' && <a href="#/access">열람 내역</a>}
+          </nav>
+          <main className="page">
+            {route.startsWith('/cards/') && <CardPage id={route.slice('/cards/'.length)} role={role ?? ''} onChanged={refresh} />}
+            {route === '/' && role === 'teacher' && <HomePage />}
+            {route === '/upload' && role === 'teacher' && <UploadPage session={session} onUploaded={refresh} />}
+            {route === '/plans' && role === 'teacher' && <PlansPage />}
+            {route === '/practice' && role === 'teacher' && <PracticePage />}
+            {route === '/skills' && role === 'teacher' && <SkillsPage />}
+            {route === '/changes' && role === 'teacher' && <ChangesPage />}
+            {route === '/teachers' && (role === 'representative' || role === 'admin') && <TeachersPage role={role} />}
+            {route === '/access' && role === 'representative' && <AccessPage />}
+            {route === '/' && role !== 'teacher' && <TeachersPage role={role ?? 'admin'} />}
+          </main>
+        </>
+      )}
     </>
   )
 }
-
-export default App

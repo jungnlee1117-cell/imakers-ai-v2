@@ -1,112 +1,50 @@
-# 아이메이커스 AI V2.1
+# 수업 코칭
 
-6–10세 어린이가 자신의 그림에서 시작해 AI와 대화하고, 생각을 확장한 뒤 이미지로 펼쳐보는 창작 스튜디오 프로토타입입니다.
+선생님이 수업 녹음을 올리면, 처리 서버가 소리를 골라 카드 데이터 JSON 한 장을 만들고, 화면은 그 JSON만 읽습니다. 아이메이커스 그림 스튜디오는 이 앱으로 바뀌었습니다.
 
 ## 실행
 
 ```bash
+cp .env.example .env
+docker compose up -d
 npm install
+npm run migrate
 npm run dev -- --host 0.0.0.0
 ```
 
-`npm run dev`는 Vite frontend와 Express API를 함께 실행합니다. 프로덕션 frontend 빌드는 `npm run build`, 서버 type check는 `npm run typecheck:server`로 확인할 수 있습니다.
-
-## 현재 범위
-
-- 터치/포인터 그림판과 이미지 업로드
-- 불확실성을 전제로 한 그림 관찰
-- 이전 답변을 연결하는 AI 코치 대화
-- 세션 단위 Creative Memory
-- 사용자 동의 후 시각화
-- 원본/확장 이미지 나란히 비교
-- 자연어 수정과 V1/V2/V3 버전 탐색
-- 6가지 질감의 Pointer Event 기반 미술 도구
-- 객체 선택, 7가지 preset, 자연어 수정이 가능한 Motion Studio
-- AI/Image Provider 어댑터
-
-기본값은 브라우저에서 바로 체험 가능한 mock provider입니다.
-
-## 실제 AI 연결
-
-`.env.example`을 `.env`로 복사하고 provider와 API 백엔드 주소를 지정합니다.
-
-```env
-VITE_AI_PROVIDER=openai
-VITE_AI_API_BASE=/api
-```
-
-시작 화면 우측 상단에서 Coach provider(체험/OpenAI/Claude)와 Image provider(Mock/OpenAI)를 각각 선택할 수 있습니다. Mock 이미지는 생성 이미지로 위장하지 않고 화면에 `MOCK IMAGE`로 표시됩니다. 프론트엔드는 다음 백엔드 엔드포인트를 사용합니다.
-
-- `POST /api/analyze-drawing`
-- `POST /api/respond-to-child`
-- `POST /api/summarize-memory`
-- `POST /api/generate-image`
-- `POST /api/edit-image`
-
-OpenAI/Anthropic API 키는 `VITE_` 환경 변수에 넣지 마세요. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`처럼 서버 전용 환경 변수로 관리해야 합니다. Provider 계약은 `src/providers/types.ts`, 원격 어댑터는 `src/providers/index.ts`, mock 동작은 `src/providers/mock.ts`에 있습니다.
-
-Cloud adapter는 `server/providers/openai.ts`와 `server/providers/anthropic.ts`에 있습니다. Claude는 자체 이미지 생성 API가 없으므로 Claude 대화를 선택해도 시각화는 기본적으로 OpenAI image provider를 사용합니다.
-
-동일한 10개 시나리오 비교:
+브라우저 주소는 `http://127.0.0.1:43127` 입니다. API는 `43128`이고 Vite가 `/api`를 넘깁니다.
 
 ```bash
-npm run test:providers
+npm test
+npm run typecheck
 ```
 
-평가 기준과 기록은 `AI_PROVIDER_COMPARISON.md`를 참고하세요.
+보관 기간이 지난 녹음을 바로 지울 때는 `npm run retention` 입니다. API 프로세스가 매일 한 번, 그리고 켜질 때도 같은 작업을 합니다.
 
-## Creative Memory
+## 파일 한도
 
-세션 동안 다음을 구분해 기억합니다.
+25분 수업 영상은 수백 MB가 될 수 있습니다. 업로드 한도는 **1GiB** (`1073741824`바이트)이고, 데이터베이스 `uploads.byte_size` 검사와 같습니다. 기본 청크는 **5MiB**라서 연결이 끊기면 이어서 올립니다. 청크를 64KiB보다 작게 두지 마세요. 너무 작으면 1GiB 파일이 청크 개수 한도(4096)를 넘습니다.
 
-- `mainSubject`: 아이가 확인한 중심 대상
-- `confirmedFacts`: 아이가 확정한 설정
-- `rejectedIdeas`: 거절한 AI 아이디어
-- `childPreferences`: 크기, 분위기 등 선호
-- `mood`: 이미지 생성에 사용할 분위기
-- `askedQuestions`: 반복을 피해야 하는 이전 질문
-- `behaviors`: 대상의 성격과 반복 행동
-- `movementIdeas`: 아이가 말한 움직임
-- `worldRules`: 조건에 따라 일어나는 세계의 규칙
+녹음 파일은 `DATA_DIR`(기본 `data/`)에 있습니다. 재생 주소는 5분짜리 HMAC 서명 URL만 발급하고, 범위 요청으로 시각 이동을 받습니다.
 
-실제 서비스에서는 이 객체 전체를 대화 및 이미지 생성 요청에 포함하도록 설계되어 있습니다.
+## 처리 경계
 
-아이 입력은 `src/ai/childInputNormalizer.ts`에서 raw/normalized/meaning으로 구분합니다. 확실한 오타만 조용히 정규화하며, 불확실한 고유명사는 AI Coach가 확인합니다.
+입력은 소리 파일, 종목, 언어 모드(`english` | `korean` | `mixed`), 있으면 선생님이 이 앱에 올린 계획안 텍스트입니다. 출력은 카드 스키마를 만족하는 JSON 하나입니다. 전사 줄은 `start_sec`, `text`, `trusted`만 따로 저장합니다. 화면은 저장된 카드 JSON만 그리고, 처리 도중의 내부 필드를 직접 읽지 않습니다.
 
-실제 OpenAI 이미지 요청은 원본 그림과 Creative Memory를 `server/imagePlan.ts`에서 KEEP/CHANGE 계획으로 구성합니다. 개발 모드에서는 Visualize 화면의 Image Generation Debug 패널에서 provider, prompt, image ID와 이전 image ID를 확인할 수 있습니다.
+카드 약속은 `process/card_schema.json` 입니다. `contracts/card_schema.json` 은 같은 파일이어야 합니다. `process/process.py` 의 `features`, `merge`, `run` 이 처리 구현이고, `server/card/process-steps.ts` 가 그 세 명령을 그대로 호출합니다. `run` 은 전사기와 API를 실제로 부르므로, 지금은 호출하지 않고 성공한 결과를 만들지 않습니다.
 
-## Motion 구조
+지금 기본 처리기는 `local-band` 입니다. 스키마를 통과한 `process/card_b_auto.json` 을 고정 출력으로 돌려줍니다. 수업 날짜·반·종목·언어·영상/음성 여부와, 이 앱에 올린 계획안 텍스트만 입력에 맞춥니다. 올린 소리는 읽지 않고, 밖으로 보내지 않습니다. 다른 처리기 이름을 넣으면 연결하지 않고 거절합니다.
 
-`src/motion/types.ts`의 `AnimatedObject`와 `MotionSpec`이 객체와 움직임을 분리합니다. 현재 객체 영역은 mock이며, `src/motion/mockInterpreter.ts`가 “더 빨리”, “왼쪽으로”, “더 높이 뛰어” 같은 표현을 속도·방향·크기로 변환합니다. 이후 실제 객체 분리 및 AI interpreter로 교체할 수 있습니다.
-# React + TypeScript + Vite
+`features` 와 `merge` 를 직접 돌리려면 `process/requirements.txt` 의 패키지가 필요합니다. `run` 은 그 위에 전사기와 API 키가 있어야 하며, 이 앱은 그 경로를 켜 두지 않습니다.
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+영상은 `ffmpeg -y -i 입력 -vn -ac 1 -ar 16000 출력.m4a`로 소리를 뽑은 뒤 원본을 지웁니다. 음성 파일은 그대로 둡니다. 같은 업로드는 `queued`를 원자적으로 `processing`으로 바꾼 뒤에만 처리합니다.
 
-Currently, two official plugins are available:
+## 권한
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Postgres 행 보안입니다. 앱 역할 `class_coach_app`은 슈퍼유저가 아니고 행 보안을 우회하지 않습니다. 선생님은 본인 행만, 관리자는 담당 선생님 행만, 대표는 같은 소속만 읽습니다. 다른 소속은 보이지 않습니다. 가입은 이메일뿐입니다. GTS는 초대 또는 승인만 받고 무료로 표시됩니다. 그 밖 소속은 직접 만들 수 있고 유료로 표시됩니다. 결제는 연결하지 않습니다.
 
-## React Compiler
+동의 문구 초안은 전문가 검토 전이라 가입·업로드 화면에 넣지 않습니다. 첫 업로드 전에 동의가 필요하다는 확인과 `consents` 기록만 있습니다.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 아직 없는 것
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+발음 교정, "아이들은 이래요", 학부모 공개, 인사평가, 결제 연결과 구글·카카오 로그인은 없습니다. 아이 이름은 저장 전에 `[아이]`로 가립니다. 선생님 화면에만 원문을 보여주는 방법은 아직 정하지 않았습니다.

@@ -1,0 +1,316 @@
+{
+  "schema_version": "1.0",
+  "lesson": {
+    "date": "2026-08-25",
+    "class_name": "수업 B",
+    "sport": "soccer",
+    "language_mode": "english",
+    "duration_sec": 1527,
+    "source": "video"
+  },
+  "flow": {
+    "lead": "막대의 길이는 시간 비율입니다. 설명과 정리를 뺀, 아이들이 움직인 시간이 65%(16분 39초)였습니다.",
+    "note": "규칙 설명(12:14~13:43)이 약 1분 반으로 짧고 분명해서 게임 시간을 10분 이상 확보했습니다. 연습 구간에서 \"대기\" 지시가 반복된 부분(6:36~7:32)이 가장 길게 걸렸습니다.",
+    "segments": [
+      {
+        "start_sec": 0,
+        "end_sec": 145,
+        "label": "조끼 나눠주기·감사 인사·자리 정리",
+        "kind": "normal"
+      },
+      {
+        "start_sec": 145,
+        "end_sec": 224,
+        "label": "공 나눠주기·색깔 이야기",
+        "kind": "normal"
+      },
+      {
+        "start_sec": 224,
+        "end_sec": 336,
+        "label": "원 터치 연습 (규칙 설명 포함)",
+        "kind": "main"
+      },
+      {
+        "start_sec": 336,
+        "end_sec": 374,
+        "label": "머리·어깨·무릎·공 놀이",
+        "kind": "main"
+      },
+      {
+        "start_sec": 374,
+        "end_sec": 482,
+        "label": "펭귄 릴레이",
+        "kind": "main"
+      },
+      {
+        "start_sec": 482,
+        "end_sec": 600,
+        "label": "다리 사이로 공 패스",
+        "kind": "main"
+      },
+      {
+        "start_sec": 600,
+        "end_sec": 734,
+        "label": "정리·전환·팀 구성",
+        "kind": "normal"
+      },
+      {
+        "start_sec": 734,
+        "end_sec": 823,
+        "label": "게임 규칙 설명",
+        "kind": "normal"
+      },
+      {
+        "start_sec": 823,
+        "end_sec": 1446,
+        "label": "3대3 게임 (교대)",
+        "kind": "main"
+      },
+      {
+        "start_sec": 1446,
+        "end_sec": 1527,
+        "label": "정리·신발 갈아신기",
+        "kind": "normal"
+      }
+    ]
+  },
+  "english_phrases": {
+    "note": "문장 오류 0건. 아래 5건은 오류가 아니라, 아이들이 더 쉽게 따라올 수 있도록 짧고 긍정형으로 바꾼 다듬기 제안입니다. 음성인식이 틀리게 받아썼을 수 있으니 선생님이 직접 말한 문장인지 먼저 확인해 주세요.",
+    "items": [
+      {
+        "at_sec": 396,
+        "heard": "You can start when your friend gets to the green circle, okay?",
+        "suggested": "Wait for green. Then go!",
+        "reason": "문장이 길어서 아이들이 \"wait\"를 4구간 이상 다시 들었습니다. 두 동작으로 줄이면 한 번에 이해됩니다.",
+        "type": "tip"
+      },
+      {
+        "at_sec": 604,
+        "heard": "…walking walking balls away in the bag in the bag…",
+        "suggested": "Walking feet. Balls in the bag.",
+        "reason": "지시가 이어 붙어 들렸습니다. 한 문장에 지시 하나로 끊어 말합니다.",
+        "type": "tip"
+      },
+      {
+        "at_sec": 151,
+        "heard": "No running, no running, one ball each.",
+        "suggested": "Walking feet. One ball each.",
+        "reason": "금지 대신 해야 할 행동을 말합니다.",
+        "type": "tip"
+      },
+      {
+        "at_sec": 1446,
+        "heard": "No more talking.",
+        "suggested": "Quiet mouths, please.",
+        "reason": "부정형 대신 긍정형으로 말합니다.",
+        "type": "tip"
+      },
+      {
+        "at_sec": 1491,
+        "heard": "Everyone line up, change your shoes.",
+        "suggested": "Line up. Then change your shoes.",
+        "reason": "한 번에 하나씩 말하면 순서가 분명합니다.",
+        "type": "tip"
+      }
+    ]
+  },
+  "interaction": {
+    "good": [
+      {
+        "title": "감정을 인정한 뒤 규칙 말하기",
+        "at_sec": [
+          220
+        ],
+        "text": "\"I know you guys are excited, but… Now is not the time for you to talk.\" 아이 마음을 먼저 받고 규칙을 말했습니다."
+      },
+      {
+        "title": "지난 수업과 연결하기",
+        "at_sec": [
+          237
+        ],
+        "text": "\"We've done this before.\" 한 번 해 본 활동임을 알려 부담을 줄였습니다."
+      },
+      {
+        "title": "이름 + 구체적 칭찬",
+        "at_sec": [
+          516
+        ],
+        "text": "\"Good job, Haru. Well done, Jian.\" 이름을 불러 칭찬했습니다."
+      },
+      {
+        "title": "기다릴 시간 알려 주기",
+        "at_sec": [
+          770
+        ],
+        "text": "\"You're gonna play it in two minutes, okay?\" 얼마나 기다리는지 말해 주었습니다."
+      },
+      {
+        "title": "공평하게 차례 돌리기",
+        "at_sec": [
+          1119,
+          1337
+        ],
+        "text": "\"Lucas, one more time.\"처럼 이름을 불러 기회를 나눴습니다."
+      }
+    ],
+    "improve": [
+      {
+        "title": "진정시키는 말이 짧음",
+        "at_sec": [
+          79,
+          88
+        ],
+        "text": "\"no screaming\", \"Calm down\"만 들렸습니다. \"Use your quiet voice.\"처럼 해야 할 행동을 함께 말해 주세요."
+      },
+      {
+        "title": "경기 중 \"No hands\" 반복",
+        "at_sec": [
+          1016,
+          1049,
+          1151
+        ],
+        "text": "같은 말이 세 시점에서 반복됐습니다. 시작 전 규칙은 잘 확인했으니(13:21), 어겼을 때 정해 둔 결과(예: 잠깐 쉬기)를 함께 알려 주면 좋습니다."
+      }
+    ]
+  },
+  "plan_adherence": {
+    "status": "not_linked"
+  },
+  "metrics": [
+    {
+      "id": "move",
+      "label": "움직인 시간 비율",
+      "value": 65,
+      "unit": "%",
+      "better": "up",
+      "tolerance": 5,
+      "compare": true
+    },
+    {
+      "id": "praise",
+      "label": "칭찬 표현 (확인된 것)",
+      "value": 8,
+      "unit": "회",
+      "better": "up",
+      "tolerance": 3,
+      "sub": "5:07 · 7:30 · 8:15 · 8:36 외",
+      "compare": true
+    },
+    {
+      "id": "wait",
+      "label": "대기 지시 반복 구간",
+      "value": 4,
+      "unit": "구간",
+      "better": "down",
+      "tolerance": 1,
+      "compare": false
+    },
+    {
+      "id": "rule",
+      "label": "규칙을 질문+시범으로 안내",
+      "value": 1,
+      "unit": "회",
+      "better": "up",
+      "tolerance": 1,
+      "compare": false
+    },
+    {
+      "id": "q",
+      "label": "아이 반응을 끌어낸 질문 구간",
+      "value": 6,
+      "unit": "구간",
+      "better": "up",
+      "tolerance": 3,
+      "compare": true
+    },
+    {
+      "id": "gr",
+      "label": "문장 오류 후보",
+      "value": 0,
+      "unit": "건",
+      "better": "down",
+      "tolerance": 1,
+      "compare": true
+    }
+  ],
+  "excluded_lines": [
+    {
+      "at_sec": 41,
+      "reason": "\"…get to penis from me…\" → 0:11을 다시 전사하니 \"PINNIES(조끼)\"로 나왔습니다. 오인식으로 보고 제외했습니다."
+    },
+    {
+      "at_sec": 145,
+      "reason": "\"Shit.\" → 다시 전사하면 나오지 않았습니다. 제외했습니다."
+    },
+    {
+      "at_sec": 918,
+      "reason": "\"Okay, shut up!\" → 넓은 구간을 다시 전사하면 \"Okay, attention!\"으로 나왔고, 8/18 수업에서도 같은 소리가 \"attention\"으로 확인됐습니다. 오인식으로 보고 제외했습니다. 사람이 직접 듣고 확인하는 것이 가장 정확합니다."
+    },
+    {
+      "at_sec": 1438,
+      "reason": "\"Okay, okay, shit!\" → 다시 전사하면 나오지 않았습니다. 제외했습니다."
+    },
+    {
+      "at_sec": 633,
+      "reason": "\"I’ll see you in the next video.\", 11:02~11:52의 대화·기기 소리는 수업 밖 소리로 보여 제외했습니다."
+    }
+  ],
+  "practice": [
+    {
+      "id": "s1",
+      "say": "Walking feet. Balls in the bag.",
+      "why": "이어 붙인 긴 지시를 끊어서 말하는 연습입니다.",
+      "is_task": false
+    },
+    {
+      "id": "s2",
+      "say": "Wait for green. Then go!",
+      "why": "길게 설명한 대기 규칙을 두 동작으로 줄입니다.",
+      "is_task": false
+    },
+    {
+      "id": "s3",
+      "say": "Nice pass! Gentle, gentle.",
+      "why": "게임 중 주의 사이사이에 넣을 칭찬입니다.",
+      "is_task": false
+    },
+    {
+      "id": "s4",
+      "say": "게임 구간에서 \"Careful\" 한 번에 칭찬 한 번 하기",
+      "why": "수업이 끝난 뒤에 체크하세요.",
+      "is_task": true
+    }
+  ],
+  "skill_events": [
+    {
+      "skill_id": "praise",
+      "expression": "Excellent!",
+      "at_sec": 307
+    },
+    {
+      "skill_id": "praise",
+      "expression": "Well done!",
+      "at_sec": 516
+    },
+    {
+      "skill_id": "rule_as_question",
+      "expression": "공 던지기",
+      "at_sec": 803
+    },
+    {
+      "skill_id": "rule_as_question",
+      "expression": "슬라이딩 태클",
+      "at_sec": 803
+    },
+    {
+      "skill_id": "child_care",
+      "expression": "I know you guys are excited, but…",
+      "at_sec": 220
+    },
+    {
+      "skill_id": "child_care",
+      "expression": "You're gonna play it in two minutes.",
+      "at_sec": 770
+    }
+  ]
+}
