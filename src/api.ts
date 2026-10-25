@@ -8,6 +8,12 @@ export class ApiError extends Error {
   }
 }
 
+let onUnauthorized: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (typeof init.body === 'string' && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
@@ -15,7 +21,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (response.status === 204) return undefined as T
   const text = await response.text()
   const data = text ? JSON.parse(text) as { error?: string; code?: string } : {}
-  if (!response.ok) throw new ApiError(data.error || '요청이 실패했습니다.', response.status, data.code)
+  if (!response.ok) {
+    if (response.status === 401 && !path.startsWith('/api/auth/')) onUnauthorized?.()
+    throw new ApiError(data.error || '요청이 실패했습니다.', response.status, data.code)
+  }
   return data as T
 }
 

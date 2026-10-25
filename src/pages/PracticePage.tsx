@@ -16,6 +16,7 @@ export default function PracticePage() {
         checked: string[]
         streak: number
       }>('/api/practice')
+      setError(null)
       setUploadId(data.uploadId ?? null)
       setPractice(data.practice ?? [])
       setChecked(data.checked)
@@ -38,7 +39,7 @@ export default function PracticePage() {
       <h1>오늘의 연습</h1>
       <p>연속 {streak}일</p>
       {error && <p className="error" role="alert">{error}</p>}
-      {practice.length === 0 && <p className="muted">완료된 카드가 없으면 연습이 없습니다.</p>}
+      {!error && practice.length === 0 && <p className="muted">완료된 카드가 없으면 연습이 없습니다.</p>}
       {practice.map((item) => (
         <article key={item.id} className="card stack">
           <span className="pill">{item.is_task ? '수업 후 과제' : '소리 내어 읽기'}</span>

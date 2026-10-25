@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, go, type Session } from './api.ts'
+import { api, go, setUnauthorizedHandler, type Session } from './api.ts'
 import { billingLabel, roleLabel } from './format.ts'
 import AccessPage from './pages/AccessPage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
@@ -32,10 +32,14 @@ export default function App() {
   }
 
   useEffect(() => {
+    setUnauthorizedHandler(() => setSession(null))
     void refresh()
     const onHash = () => setRoute(pathOf())
     window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    return () => {
+      setUnauthorizedHandler(null)
+      window.removeEventListener('hashchange', onHash)
+    }
   }, [])
 
   if (!ready) return <main className="page">불러오는 중</main>
