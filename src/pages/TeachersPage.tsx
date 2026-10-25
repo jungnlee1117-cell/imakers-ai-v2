@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api, go } from '../api.ts'
+import { api, go, type Session } from '../api.ts'
 import { statusLabel } from '../format.ts'
+import UploadPage from './UploadPage.tsx'
 
 type Teacher = {
   id: string
@@ -14,7 +15,7 @@ type Teacher = {
 }
 type Member = { userId: string; role: string; status: string; displayName: string; email: string }
 
-export default function TeachersPage({ role }: { role: string }) {
+export default function TeachersPage({ role, session }: { role: string; session: Session }) {
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [onlyMissing, setOnlyMissing] = useState(false)
@@ -46,6 +47,16 @@ export default function TeachersPage({ role }: { role: string }) {
       <h1>선생님 목록</h1>
       <p className="muted">관리자는 담당 선생님만 봅니다. 녹음 재생도 담당 선생님만 됩니다. 이름은 가나다순입니다.</p>
       {error && <p className="error" role="alert">{error}</p>}
+      {role === 'representative' && (
+        <UploadPage
+          session={session}
+          teachers={members.filter((member) => member.role === 'teacher' && member.status === 'active').map((member) => ({
+            id: member.userId,
+            displayName: member.displayName,
+          }))}
+          onUploaded={() => { void load() }}
+        />
+      )}
       <label className="row"><input type="checkbox" checked={onlyMissing} onChange={(event) => setOnlyMissing(event.target.checked)} /> 최근 30일 동안 올리지 않은 선생님</label>
       {visible.length === 0 && <p className="muted">보이는 선생님이 없습니다.</p>}
       {visible.map((teacher) => (

@@ -19,3 +19,6 @@ export const MEDIA_URL_TTL_SECONDS = 5 * 60
 export const CONSENT_VERSION = 'placeholder-awaiting-legal-review'
 export const LOCAL_BAND_ID = 'local-band'
 export const GTS_ORG_ID = '11111111-1111-4111-8111-111111111111'
+
+/** 이 이메일로 가입하거나 로그인하면 GTS 대표가 된다. 다른 이메일은 GTS를 골라 무료로 들어오지 못한다. */
+export const GTS_REPRESENTATIVE_EMAIL = 'jungnlee1117@gmail.com'

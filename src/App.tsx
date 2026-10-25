@@ -109,9 +109,9 @@ export default function App() {
             {route === '/practice' && role === 'teacher' && <PracticePage />}
             {route === '/skills' && role === 'teacher' && <SkillsPage />}
             {route === '/changes' && role === 'teacher' && <ChangesPage />}
-            {route === '/teachers' && (role === 'representative' || role === 'admin') && <TeachersPage role={role} />}
+            {route === '/teachers' && (role === 'representative' || role === 'admin') && <TeachersPage role={role} session={session} />}
             {route === '/access' && role === 'representative' && <AccessPage />}
-            {route === '/' && role !== 'teacher' && <TeachersPage role={role ?? 'admin'} />}
+            {route === '/' && role !== 'teacher' && <TeachersPage role={role ?? 'admin'} session={session} />}
           </main>
         </>
       )}

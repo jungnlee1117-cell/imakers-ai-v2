@@ -19,6 +19,7 @@ import { skillStage } from './card/skills.js'
 import type { CardDocument } from './card/types.js'
 import { assembleUpload, extractPdfText, fileSize, openReadStream, removeChunks, removeUploadFiles, writeChunk, writeLessonPlan } from './files.js'
 import { extensionFor, safeFilename } from './paths.js'
+import { placeDesignatedRepresentative, isDesignatedGtsRepresentative } from './gts-representative.js'
 import { CONSENT_VERSION, GTS_ORG_ID, LESSON_PLAN_MAX_BYTES, MAX_CHUNKS, MAX_UPLOAD_BYTES, chunkSizeBytes } from './limits.js'
 import { signMediaUrl, verifyMediaSignature } from './media.js'
 
@@ -182,7 +183,9 @@ export function createApp() {
       )
       const userId = user.rows[0].id
       let organizationId = ''
-      if (body.mode === 'create_org') {
+      if (isDesignatedGtsRepresentative(body.email)) {
+        organizationId = await placeDesignatedRepresentative(client, userId)
+      } else if (body.mode === 'create_org') {
         const name = body.organizationName ?? ''
         if (!name || isReservedOrgName(name)) throw new HttpError(400, 'GTS가 아닌 새 소속 이름이 필요합니다.', 'org')
         let slug = slugify(name)
@@ -242,6 +245,19 @@ export function createApp() {
     const hash = user.rows[0]?.password_hash ?? await dummyPasswordHash()
     const ok = await verifyPassword(body.password, hash)
     if (!user.rows[0] || !ok) throw new HttpError(401, '이메일 또는 비밀번호가 올바르지 않습니다.', 'auth')
+    if (isDesignatedGtsRepresentative(body.email)) {
+      const client = await adminPool().connect()
+      try {
+        await client.query('BEGIN')
+        await placeDesignatedRepresentative(client, user.rows[0].id)
+        await client.query('COMMIT')
+      } catch (error) {
+        await client.query('ROLLBACK')
+        throw error
+      } finally {
+        client.release()
+      }
+    }
     const membership = await adminPool().query<{ organization_id: string }>(
       `SELECT organization_id FROM memberships
        WHERE user_id = $1
@@ -502,7 +518,9 @@ export function createApp() {
 
   app.post('/api/uploads/init', asyncRoute(async (req, res) => {
     const auth = requireActive(await loadAuth(req, res))
-    if (auth.role !== 'teacher') throw new HttpError(403, '선생님만 녹음을 올립니다.', 'forbidden')
+    if (auth.role !== 'teacher' && auth.role !== 'representative') {
+      throw new HttpError(403, '선생님 또는 같은 소속 대표만 녹음을 올립니다.', 'forbidden')
+    }
     if (!await hasConsent(auth)) throw new HttpError(403, '첫 업로드 전에 동의 기록이 필요합니다.', 'consent_required')
     const body = z.object({
       filename: z.string().min(1).max(200),
@@ -512,7 +530,18 @@ export function createApp() {
       className: z.string().trim().min(1).max(80),
       sport: z.string().regex(/^[a-z0-9_-]{1,40}$/),
       languageMode: z.enum(['english', 'korean', 'mixed']),
+      teacherId: z.uuid().optional(),
     }).parse(req.body)
+    let teacherId = auth.userId
+    if (auth.role === 'teacher') {
+      if (body.teacherId && body.teacherId !== auth.userId) {
+        throw new HttpError(403, '다른 선생님의 수업은 올릴 수 없습니다.', 'forbidden')
+      }
+    } else if (!body.teacherId) {
+      throw new HttpError(400, '소속 선생님을 고르세요.', 'teacher')
+    } else {
+      teacherId = body.teacherId
+    }
     if (body.byteSize > MAX_UPLOAD_BYTES) {
       throw new HttpError(413, '파일 한도는 1GiB입니다. 25분 영상(수백 MB)은 이 한도 안에 들어옵니다.', 'too_large')
     }
@@ -529,7 +558,7 @@ export function createApp() {
          id, organization_id, teacher_id, lesson_date, class_name, sport, language_mode,
          original_filename, byte_size, media_kind, content_type, status, chunk_size, expected_chunks
        ) VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9,$10,$11,'uploading',$12,$13)`,
-      [id, auth.organizationId, auth.userId, body.lessonDate, body.className, body.sport, body.languageMode,
+      [id, auth.organizationId, teacherId, body.lessonDate, body.className, body.sport, body.languageMode,
         safeFilename(body.filename), body.byteSize, kind, body.contentType, chunkSize, expected],
     ))
     res.status(201).json({ id, chunkSize, expectedChunks: expected })

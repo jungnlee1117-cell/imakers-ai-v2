@@ -250,6 +250,26 @@ SET search_path = public AS $$
     )
 $$;
 
+CREATE OR REPLACE FUNCTION can_upload_for_teacher(target uuid, org uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public AS $$
+  SELECT current_app_user() IS NOT NULL
+    AND org IS NOT DISTINCT FROM current_app_org()
+    AND (
+      (current_app_role() = 'teacher' AND target = current_app_user())
+      OR (
+        current_app_role() = 'representative'
+        AND EXISTS (
+          SELECT 1 FROM memberships m
+          WHERE m.user_id = target
+            AND m.organization_id = org
+            AND m.role = 'teacher'
+            AND m.status = 'active'
+        )
+      )
+    )
+$$;
+
 CREATE OR REPLACE FUNCTION org_join_policy(target uuid) RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public AS $$
@@ -534,25 +554,15 @@ USING (can_read_teacher(teacher_id, organization_id));
 
 CREATE POLICY uploads_insert ON uploads FOR INSERT
 WITH CHECK (
-  organization_id = current_app_org()
-  AND teacher_id = current_app_user()
-  AND current_app_role() = 'teacher'
+  can_upload_for_teacher(teacher_id, organization_id)
   AND status = 'uploading'
   AND audio_path IS NULL
   AND worker_token IS NULL
 );
 
 CREATE POLICY uploads_update ON uploads FOR UPDATE
-USING (
-  teacher_id = current_app_user()
-  AND organization_id = current_app_org()
-  AND current_app_role() = 'teacher'
-)
-WITH CHECK (
-  teacher_id = current_app_user()
-  AND organization_id = current_app_org()
-  AND current_app_role() = 'teacher'
-);
+USING (can_upload_for_teacher(teacher_id, organization_id))
+WITH CHECK (can_upload_for_teacher(teacher_id, organization_id));
 
 CREATE POLICY uploads_delete ON uploads FOR DELETE
 USING (
@@ -696,6 +706,7 @@ GRANT EXECUTE ON FUNCTION current_app_org() TO class_coach_app;
 GRANT EXECUTE ON FUNCTION current_app_role() TO class_coach_app;
 GRANT EXECUTE ON FUNCTION is_assigned_teacher(uuid) TO class_coach_app;
 GRANT EXECUTE ON FUNCTION can_read_teacher(uuid, uuid) TO class_coach_app;
+GRANT EXECUTE ON FUNCTION can_upload_for_teacher(uuid, uuid) TO class_coach_app;
 GRANT EXECUTE ON FUNCTION org_join_policy(uuid) TO class_coach_app;
 
 INSERT INTO schema_migrations (id) VALUES ('001_init');

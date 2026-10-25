@@ -1,11 +1,10 @@
 import 'dotenv/config'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { adminPool } from './db.js'
 
-const migrationId = '001_init'
-const sqlPath = join(dirname(fileURLToPath(import.meta.url)), '../db/migrations/001_init.sql')
+const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '../db/migrations')
 
 async function ensureRole() {
   const admin = adminPool()
@@ -23,20 +22,25 @@ export async function migrate() {
     id text PRIMARY KEY,
     applied_at timestamptz NOT NULL DEFAULT now()
   )`)
-  const applied = await admin.query(`SELECT 1 FROM schema_migrations WHERE id = $1`, [migrationId])
-  if (applied.rowCount) return
   await ensureRole()
-  const sql = readFileSync(sqlPath, 'utf8')
-  const client = await admin.connect()
-  try {
-    await client.query('BEGIN')
-    await client.query(sql)
-    await client.query('COMMIT')
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
+  const files = readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort()
+  for (const file of files) {
+    const id = file.replace(/\.sql$/, '')
+    const applied = await admin.query(`SELECT 1 FROM schema_migrations WHERE id = $1`, [id])
+    if (applied.rowCount) continue
+    const sql = readFileSync(join(migrationsDir, file), 'utf8')
+    const client = await admin.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(sql)
+      await client.query(`INSERT INTO schema_migrations (id) VALUES ($1) ON CONFLICT DO NOTHING`, [id])
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 }
 

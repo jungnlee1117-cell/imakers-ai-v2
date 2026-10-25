@@ -3,12 +3,19 @@ import { api, go, type Session } from '../api.ts'
 
 const RESUME = 'cc-upload'
 
-export default function UploadPage({ session, onUploaded }: { session: Session; onUploaded: () => void }) {
+export default function UploadPage({ session, onUploaded, teachers }: {
+  session: Session
+  onUploaded: () => void
+  teachers?: Array<{ id: string; displayName: string }>
+}) {
   const [file, setFile] = useState<File | null>(null)
   const [lessonDate, setLessonDate] = useState(new Date().toISOString().slice(0, 10))
   const [className, setClassName] = useState('')
   const [sport, setSport] = useState('soccer')
   const [languageMode, setLanguageMode] = useState('english')
+  const [teacherId, setTeacherId] = useState('')
+  const forTeacher = Boolean(teachers)
+  const selectedTeacher = teachers?.some((teacher) => teacher.id === teacherId) ? teacherId : (teachers?.[0]?.id ?? '')
   const [progress, setProgress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agree, setAgree] = useState(Boolean(session.consent))
@@ -23,11 +30,11 @@ export default function UploadPage({ session, onUploaded }: { session: Session; 
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!file) return
+    if (!file || (forTeacher && !selectedTeacher)) return
     setError(null)
     try {
       await ensureConsent()
-      const fingerprint = `${file.name}:${file.size}:${file.lastModified}`
+      const fingerprint = `${selectedTeacher}:${file.name}:${file.size}:${file.lastModified}`
       let saved = sessionStorage.getItem(RESUME)
       let uploadId = ''
       let chunkSize = 0
@@ -56,6 +63,7 @@ export default function UploadPage({ session, onUploaded }: { session: Session; 
             className,
             sport,
             languageMode,
+            ...(forTeacher ? { teacherId: selectedTeacher } : {}),
           }),
         })
         uploadId = created.id
@@ -96,10 +104,14 @@ export default function UploadPage({ session, onUploaded }: { session: Session; 
 
   return (
     <form className="stack" onSubmit={(event) => { void submit(event) }}>
-      <h1>업로드</h1>
+      {forTeacher ? <h2>선생님 수업 올리기</h2> : <h1>업로드</h1>}
       <section className="panel stack">
         <h2>열람 범위</h2>
-        <p>같은 소속의 대표는 녹음과 카드를 볼 수 있습니다. 관리자는 담당 선생님만 재생하고 전사를 봅니다. 다른 소속은 아무도 볼 수 없습니다.</p>
+        {forTeacher ? (
+          <p>고른 선생님의 수업으로 저장됩니다. 그 선생님의 목록에도 보입니다. 다른 소속 선생님은 올릴 수 없습니다.</p>
+        ) : (
+          <p>같은 소속의 대표는 녹음과 카드를 볼 수 있습니다. 대표가 선생님을 골라 올린 수업도 이 목록에 남습니다. 관리자는 담당 선생님만 재생하고 전사를 봅니다. 다른 소속은 아무도 볼 수 없습니다.</p>
+        )}
         <p>영상은 소리를 뽑은 뒤 삭제하고, 소리는 {session.organization?.retentionDays ?? 365}일 보관합니다. 소속 기관의 녹음 허락은 선생님이 직접 확인해야 합니다.</p>
         <p>파일 한도는 1GiB입니다. 25분 영상(수백 MB)을 올릴 수 있고, 끊기면 이어서 올립니다.</p>
       </section>
@@ -109,6 +121,14 @@ export default function UploadPage({ session, onUploaded }: { session: Session; 
           <p>첫 업로드 전에 녹음 이용 동의가 필요합니다. 동의 문구는 전문가 검토 전이라 이 화면에 넣지 않습니다. 확인하면 동의 기록만 저장됩니다.</p>
           <label className="row"><input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} /> 녹음 이용에 대한 동의가 필요하다는 점을 확인했습니다.</label>
         </section>
+      )}
+      {forTeacher && (
+        <label>선생님
+          <select value={selectedTeacher} onChange={(event) => setTeacherId(event.target.value)} required>
+            {teachers?.length === 0 && <option value="">승인된 선생님이 없습니다</option>}
+            {teachers?.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.displayName}</option>)}
+          </select>
+        </label>
       )}
       <label>날짜<input type="date" value={lessonDate} onChange={(event) => setLessonDate(event.target.value)} required /></label>
       <label>반<input value={className} onChange={(event) => setClassName(event.target.value)} required /></label>
@@ -128,7 +148,7 @@ export default function UploadPage({ session, onUploaded }: { session: Session; 
       <label>영상 또는 음성<input type="file" accept="video/*,audio/*" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required /></label>
       {progress && <p>올리는 중 {progress}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="primary" type="submit" disabled={!file || (!session.consent && !agree)}>올리기</button>
+      <button className="primary" type="submit" disabled={!file || (!session.consent && !agree) || (forTeacher && !selectedTeacher)}>올리기</button>
     </form>
   )
 }

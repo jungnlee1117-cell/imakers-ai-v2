@@ -148,6 +148,36 @@ test('row security lets a teacher read only their rows and an admin only assigne
 
     await as(teacherA, org1, 'pending')
     assert.deepEqual(await column('uploads'), [])
+
+    async function insertFor(org: string, teacher: string, className: string) {
+      return client.query(
+        `INSERT INTO uploads (organization_id, teacher_id, lesson_date, class_name, sport, language_mode, original_filename, byte_size, media_kind, content_type, status, chunk_size, expected_chunks)
+         VALUES ($1, $2, '2026-10-25', $3, 'soccer', 'english', 'clip.wav', 1000, 'audio', 'audio/wav', 'uploading', 65536, 1)`,
+        [org, teacher, className],
+      )
+    }
+    await as(teacherA, org1, 'teacher')
+    await insertFor(org1, teacherA, '본인 수업')
+    await assert.rejects(insertFor(org1, teacherC, '다른 선생님'))
+    await as(admin, org1, 'admin')
+    await assert.rejects(insertFor(org1, teacherA, '관리자 업로드'))
+    await as(rep1, org1, 'representative')
+    await insertFor(org1, teacherA, '대표가 올린 수업')
+    await assert.rejects(insertFor(org1, teacherB, '다른 소속 선생님'))
+    await assert.rejects(insertFor(org2, teacherB, '다른 소속'))
+    await assert.rejects(insertFor(org1, admin, '관리자 행'))
+    const touched = await client.query(`UPDATE uploads SET received_chunks = '{0}' WHERE class_name = '대표가 올린 수업'`)
+    assert.equal(touched.rowCount, 1)
+    const removed = await client.query(`DELETE FROM uploads WHERE class_name = '대표가 올린 수업'`)
+    assert.equal(removed.rowCount, 0)
+    await as(rep2, org2, 'representative')
+    await assert.rejects(insertFor(org1, teacherA, '밖에서는 불가'))
+    await as(teacherC, org1, 'teacher')
+    const hiddenUpdate = await client.query(`UPDATE uploads SET received_chunks = '{0}' WHERE class_name = '대표가 올린 수업'`)
+    assert.equal(hiddenUpdate.rowCount, 0)
+    await as(teacherA, org1, 'teacher')
+    const own = await client.query<{ class_name: string }>(`SELECT class_name FROM uploads ORDER BY class_name`)
+    assert.deepEqual(own.rows.map((row) => row.class_name).sort(), ['A반', '대표가 올린 수업', '본인 수업'].sort())
   } finally {
     await client.end()
     await closePools()
