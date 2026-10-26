@@ -1,0 +1,5 @@
+# process.py run 에 필요한 것: process/requirements.txt + 전사기 + API
+-r ../process/requirements.txt
+sherpa-onnx
+numpy
+anthropic
