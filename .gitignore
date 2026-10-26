@@ -16,6 +16,8 @@ playwright-report
 
 .env
 data/
+.venv/
+models/
 
 # Editor directories and files
 .vscode/*

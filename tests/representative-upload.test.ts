@@ -50,6 +50,9 @@ after(async () => {
 test('a representative uploads a same-org teacher lesson and nobody else can', async () => {
   process.env.DATA_DIR = await mkdtemp(path.join(tmpdir(), 'coach-rep-'))
   process.env.SIGNING_SECRET = 'test-signing-secret-012345'
+  // .env 가 process-run 이어도 테스트는 고정 결과만 쓰고 API를 부르지 않는다
+  process.env.PROCESSOR_ID = 'local-band'
+  delete process.env.ANTHROPIC_API_KEY
   const db = await import('../server/db.js')
   const migrateMod = await import('../server/migrate.js')
   const appMod = await import('../server/app.js')

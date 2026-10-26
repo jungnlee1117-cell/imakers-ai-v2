@@ -31,11 +31,25 @@ npm run typecheck
 
 입력은 소리 파일, 종목, 언어 모드(`english` | `korean` | `mixed`), 있으면 선생님이 이 앱에 올린 계획안 텍스트입니다. 출력은 카드 스키마를 만족하는 JSON 하나입니다. 전사 줄은 `start_sec`, `text`, `trusted`만 따로 저장합니다. 화면은 저장된 카드 JSON만 그리고, 처리 도중의 내부 필드를 직접 읽지 않습니다.
 
-카드 약속은 `process/card_schema.json` 입니다. `contracts/card_schema.json` 은 같은 파일이어야 합니다. `process/process.py` 의 `features`, `merge`, `run` 이 처리 구현이고, `server/card/process-steps.ts` 가 그 세 명령을 그대로 호출합니다. `run` 은 전사기와 API를 실제로 부르므로, 지금은 호출하지 않고 성공한 결과를 만들지 않습니다.
+카드 약속은 `process/card_schema.json` 입니다. `contracts/card_schema.json` 은 같은 파일이어야 합니다. `process/process.py` 의 `features`, `merge`, `run` 이 처리 구현이고, `server/card/process-steps.ts` 가 그 세 명령을 그대로 호출합니다.
 
-지금 기본 처리기는 `local-band` 입니다. 스키마를 통과한 `process/card_example_B_v1_1.json` 을 고정 출력으로 돌려줍니다. `schema_version` 이 1.1 이면 화면은 `area_reviews` 로 영역별 카드를 그립니다. 수업 날짜·반·종목·언어·영상/음성 여부와, 이 앱에 올린 계획안 텍스트만 입력에 맞춥니다. 올린 소리는 읽지 않고, 밖으로 보내지 않습니다. 다른 처리기 이름을 넣으면 연결하지 않고 거절합니다.
+처리기는 `.env` 의 `PROCESSOR_ID` 로 고릅니다. 기본값은 `local-band` 입니다. 스키마를 통과한 `process/card_example_B_v1_1.json` 을 고정 출력으로 돌려줍니다. `schema_version` 이 1.1 이면 화면은 `area_reviews` 로 영역별 카드를 그립니다. 수업 날짜·반·종목·언어·영상/음성 여부와, 이 앱에 올린 계획안 텍스트만 입력에 맞춥니다. 올린 소리는 읽지 않고, 밖으로 보내지 않습니다. 다른 처리기 이름을 넣으면 연결하지 않고 거절합니다.
 
-`features` 와 `merge` 를 직접 돌리려면 `process/requirements.txt` 의 패키지가 필요합니다. `run` 은 그 위에 전사기와 API 키가 있어야 하며, 이 앱은 그 경로를 켜 두지 않습니다.
+`process-run` 은 `server/card/run.ts` 가 `process.py run` 을 실제로 호출합니다. 전사는 이 컴퓨터에서 `scripts/transcribe_sherpa.py`(sherpa-onnx Whisper small int8 + Silero VAD)가 하고, 아이 이름을 가린 전사 텍스트만 Anthropic API로 보냅니다. 소리는 밖으로 보내지 않습니다. 키는 `.env` 의 `ANTHROPIC_API_KEY` 에서 읽고 화면이나 로그에 찍지 않습니다. 키가 없거나 전사·API·스키마 검증 중 하나라도 실패하면 업로드는 `failed` 로 남고 사유가 기록됩니다. 작업 폴더(전사 원문)는 끝나면 지웁니다. 25분 음성의 전사는 M 시리즈 맥북에서 약 2분입니다.
+
+`process-run` 준비:
+
+```bash
+brew install ffmpeg python@3.12
+python3.12 -m venv .venv
+.venv/bin/pip install -r scripts/requirements-run.txt
+mkdir -p models && cd models
+curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2
+tar xjf sherpa-onnx-whisper-small.tar.bz2 && rm sherpa-onnx-whisper-small.tar.bz2
+curl -LO https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx
+```
+
+`process.py` 는 `.venv/bin/python` 이 있으면 그것으로, 없으면 `python3` 으로 돌립니다(`PROCESS_PYTHON` 으로 바꿀 수 있음). `features` 와 `merge` 만 돌릴 때는 `process/requirements.txt` 로 충분합니다.
 
 영상은 `ffmpeg -y -i 입력 -vn -ac 1 -ar 16000 출력.m4a`로 소리를 뽑은 뒤 원본을 지웁니다. 음성 파일은 그대로 둡니다. 같은 업로드는 `queued`를 원자적으로 `processing`으로 바꾼 뒤에만 처리합니다.
 

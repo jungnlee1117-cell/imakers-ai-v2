@@ -7,6 +7,7 @@ import { test } from 'node:test'
 import { localBandProcessor } from '../server/card/band.js'
 import { compareCards } from '../server/card/compare.js'
 import { getLessonProcessor, setLessonProcessorForTests } from '../server/card/processor.js'
+import { processRunProcessor } from '../server/card/run.js'
 import { mergeSkillEvents, skillStage } from '../server/card/skills.js'
 import type { CardDocument } from '../server/card/types.js'
 import { assertValidCard } from '../server/card/validate.js'
@@ -38,6 +39,8 @@ test('the local band returns one schema-valid card and does not send audio', asy
       lessonDate: '2026-10-25',
       className: '해바라기반',
       source: 'audio',
+      durationSec: null,
+      teacherName: null,
     })
     assertValidCard(output.card)
     assert.equal(output.card.lesson.class_name, '해바라기반')
@@ -74,6 +77,8 @@ test('english phrases are omitted unless the language mode is english, and a pla
     lessonDate: '2026-10-01',
     className: 'A',
     source: 'video',
+    durationSec: null,
+    teacherName: null,
   })
   assertValidCard(korean.card)
   assert.equal('english_phrases' in korean.card, false)
@@ -126,5 +131,42 @@ test('an unknown processor is refused instead of sending audio away', () => {
   } finally {
     if (previous === undefined) delete process.env.PROCESSOR_ID
     else process.env.PROCESSOR_ID = previous
+  }
+})
+
+test('process-run calls process.py run and fails instead of inventing a card', async () => {
+  const previous = { id: process.env.PROCESSOR_ID, key: process.env.ANTHROPIC_API_KEY }
+  setLessonProcessorForTests(null)
+  process.env.PROCESSOR_ID = 'process-run'
+  const dir = await mkdtemp(join(tmpdir(), 'run-'))
+  const audioPath = join(dir, 'audio.m4a')
+  await writeFile(audioPath, Buffer.from('not audio'))
+  const input = {
+    audioPath,
+    sport: 'soccer',
+    languageMode: 'english' as const,
+    planText: null,
+    lessonDate: '2026-10-25',
+    className: '해바라기반',
+    source: 'audio' as const,
+    durationSec: 20,
+    teacherName: 'Rachel',
+  }
+  try {
+    assert.equal(getLessonProcessor(), processRunProcessor)
+    delete process.env.ANTHROPIC_API_KEY
+    await assert.rejects(processRunProcessor.process(input), /ANTHROPIC_API_KEY/)
+    // 키가 있어도 소리를 읽지 못하면 전사 단계에서 멈춘다. API까지 가지 않는다.
+    process.env.ANTHROPIC_API_KEY = 'test-not-sent'
+    await assert.rejects(processRunProcessor.process(input), (error: Error) => {
+      assert.match(error.message, /process\.py가 실패했습니다/)
+      assert.ok(!error.message.includes(dir), 'work paths are hidden')
+      return true
+    })
+  } finally {
+    for (const [name, value] of [['PROCESSOR_ID', previous.id], ['ANTHROPIC_API_KEY', previous.key]] as const) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
   }
 })

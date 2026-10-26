@@ -61,156 +61,173 @@ export default function CardPage({ id, role, onChanged }: { id: string; role: st
   if (error) return <p className="error" role="alert">{error}</p>
   if (!card) {
     return (
-      <section className="stack">
-        <h1>수업 카드</h1>
-        <p>{status === 'failed' ? '실패' : '카드를 만드는 중입니다.'}</p>
+      <section className="card stack">
+        <h2>{status === 'failed' ? '카드를 만들지 못했습니다' : '카드를 만드는 중입니다'}</h2>
+        {status !== 'failed' && <p className="muted"><span className="spinner" />보통 3~5분 걸립니다. 이 창을 닫아도 됩니다.</p>}
         {failure && <p className="error">{failure}</p>}
         {status === 'failed' && role === 'teacher' && (
           <button className="primary" onClick={() => { void api(`/api/uploads/${id}/retry`, { method: 'POST' }).then(() => { onChanged(); void load() }) }}>다시 시도</button>
         )}
+        <a href="#/">← 목록으로</a>
       </section>
     )
   }
 
-  const areaCards = card.schema_version === '1.1'
+  const reviews = card.schema_version === '1.1'
     ? AREA_ORDER.flatMap((area) => card.area_reviews?.filter((review) => review.area === area) ?? [])
     : []
+  let number = 0
+  const nextNumber = () => { number += 1; return number }
 
   return (
-    <section className="stack">
+    <section className="stack" style={{ gap: 22 }}>
+      <a href="#/" className="muted small">← 내 수업</a>
       {notice && <p className="banner">{notice}</p>}
-      <header className="stack">
+      <header className="hero-head">
         <h1>{card.lesson.date} · {card.lesson.class_name}</h1>
         <p className="muted">
-          {sportLabel(card.lesson.sport)} · {languageLabel(card.lesson.language_mode)} · {card.lesson.source === 'video' ? '영상에서 뽑은 소리' : '음성'} · {formatClock(card.lesson.duration_sec)}
+          {sportLabel(card.lesson.sport)} · {languageLabel(card.lesson.language_mode)} · {formatClock(card.lesson.duration_sec)}
         </p>
       </header>
-      <audio ref={audioRef} controls preload="metadata" src={audioUrl ?? undefined} />
-      <p className="muted">시각을 누르면 그 지점부터 재생됩니다.</p>
+      <div className="player">
+        <audio ref={audioRef} controls preload="metadata" src={audioUrl ?? undefined} />
+        <p className="muted small">초록색 시각을 누르면 그 장면부터 들려 드립니다.</p>
+      </div>
 
-      {areaCards.length === 0 && (
+      {reviews.length === 0 && (
         <>
-          <article className="card stack">
-            <h2>수업 흐름</h2>
+          <section className="sec">
+            <h2><i>{nextNumber()}</i>수업 흐름</h2>
             <FlowBar card={card} onSeek={seek} />
-          </article>
-          {card.english_phrases && (
-            <article className="card stack">
-              <h2>영어 표현 다듬기</h2>
-              <p>{card.english_phrases.note}</p>
-              {card.english_phrases.items.map((item) => (
-                <div key={`${item.at_sec}-${item.heard}`}>
-                  <button className="time" onClick={() => seek(item.at_sec)}>{formatClock(item.at_sec)}</button>
-                  <span className="pill">{PHRASE_LABEL[item.type]}</span>
-                  <p>들은 말: {item.heard}</p>
-                  <p>제안: {item.suggested}</p>
-                  <p className="muted">{item.reason}</p>
-                </div>
-              ))}
-            </article>
-          )}
-          <article className="card stack">
-            <h2>아이와의 상호작용·훈육</h2>
-            <h3>이어가 보면 좋은 장면</h3>
-            {card.interaction.good.map((scene) => (
-              <Scene key={scene.title} scene={scene} onSeek={seek} />
-            ))}
-            <h3>이렇게 해 보면 좋아요</h3>
-            {card.interaction.improve.map((scene) => (
-              <Scene key={scene.title} scene={scene} onSeek={seek} />
-            ))}
-          </article>
+          </section>
+          {card.english_phrases && <PhraseTable card={card} onSeek={seek} />}
+          <section className="sec">
+            <h2><i>{nextNumber()}</i>아이와의 상호작용 · 훈육</h2>
+            <div className="two">
+              <div className="col good"><h3>잘한 점</h3>{card.interaction.good.map((scene) => <Scene key={scene.title} scene={scene} onSeek={seek} />)}</div>
+              <div className="col weak"><h3>더 좋아질 점</h3>{card.interaction.improve.map((scene) => <Scene key={scene.title} scene={scene} onSeek={seek} />)}</div>
+            </div>
+          </section>
         </>
       )}
 
-      {areaCards.map((review) => (
-        <article key={review.area} className="card stack">
-          <h2>{AREA_LABEL[review.area]}</h2>
+      {reviews.map((review) => (
+        <section key={review.area} className="sec">
+          <h2><i>{nextNumber()}</i>{AREA_LABEL[review.area]}</h2>
           {review.area === 'flow' && <FlowBar card={card} onSeek={seek} />}
-          {review.good.map((finding) => (
-            <Finding key={finding.title} finding={finding} onSeek={seek} />
-          ))}
-          {review.improve.map((finding) => (
-            <Finding key={finding.title} finding={finding} onSeek={seek} />
-          ))}
-        </article>
+          {review.area === 'english' && card.english_phrases && <PhraseTable card={card} onSeek={seek} bare />}
+          <div className="two">
+            <div className="col good">
+              <h3>잘한 점</h3>
+              {review.good.length === 0 && <p className="muted small">이번 수업에서는 따로 짚은 점이 없습니다.</p>}
+              {review.good.map((finding) => <Finding key={finding.title} finding={finding} onSeek={seek} />)}
+            </div>
+            <div className="col weak">
+              <h3>더 좋아질 점</h3>
+              {review.improve.length === 0 && <p className="muted small">이번 수업에서는 따로 짚은 점이 없습니다.</p>}
+              {review.improve.map((finding) => <Finding key={finding.title} finding={finding} onSeek={seek} />)}
+            </div>
+          </div>
+        </section>
       ))}
 
-      <article className="card stack">
-        <h2>계획안 대로</h2>
+      <section className="sec">
+        <h2><i>{nextNumber()}</i>계획안 대로 했나요</h2>
         {card.plan_adherence?.status === 'done' ? (
-          <>
+          <div className="card stack">
             {card.plan_adherence.note && <p>{card.plan_adherence.note}</p>}
-            <div className="split">
+            <div className="two">
               <div><h3>계획한 활동</h3><ul>{(card.plan_adherence.planned ?? []).map((item) => <li key={item}>{item}</li>)}</ul></div>
               <div><h3>실제로 한 활동</h3><ul>{(card.plan_adherence.actual ?? []).map((item) => <li key={item}>{item}</li>)}</ul></div>
-              <div><h3>빠진 활동</h3><ul>{(card.plan_adherence.missing ?? []).map((item) => <li key={item}>{item}</li>)}</ul></div>
             </div>
-          </>
-        ) : <p>이 달의 계획안이 연결되지 않았습니다.</p>}
-      </article>
+            {(card.plan_adherence.missing ?? []).length > 0 && <div><h3>빠진 활동</h3><ul>{(card.plan_adherence.missing ?? []).map((item) => <li key={item}>{item}</li>)}</ul></div>}
+          </div>
+        ) : <p className="muted">이 달의 계획안이 연결되지 않았습니다. ‘계획안’ 탭에서 올리면 비교해 드립니다.</p>}
+      </section>
 
-      <article className="card stack">
-        <h2>기준 수치</h2>
-        <p className="muted">횟수와 비율입니다.</p>
+      <section className="sec">
+        <h2><i>{nextNumber()}</i>이번 수업의 기준 수치</h2>
+        <p className="muted small">내 수업의 변화를 보는 숫자입니다.</p>
         <div className="metric-grid">
           {card.metrics.map((metric) => (
-            <div key={metric.id} className="panel">
-              <div className="muted">{metric.label}</div>
-              <strong>{metric.value}{metric.unit}</strong>
-              {metric.sub && <div className="muted">{metric.sub}</div>}
+            <div key={metric.id} className="metric">
+              <b>{metric.value}<small>{metric.unit}</small></b>
+              <span>{metric.label}</span>
+              {metric.sub && <em>{metric.sub}</em>}
             </div>
           ))}
         </div>
-      </article>
+      </section>
 
-      <article className="card stack">
-        <h2>평가에서 뺀 줄</h2>
-        {card.excluded_lines.map((line) => (
-          <p key={`${line.at_sec}-${line.reason}`}>
-            <button className="time" onClick={() => seek(line.at_sec)}>{formatClock(line.at_sec)}</button> {line.reason}
-          </p>
-        ))}
-      </article>
+      <section className="sec">
+        <h2><i>{nextNumber()}</i>오늘의 연습</h2>
+        <div className="stack">
+          {card.practice.map((item) => (
+            <div key={item.id} className="card practice-item">
+              <strong>{item.say}</strong>
+              <span className="muted small">{item.why}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {card.skill_events.length > 0 && (
-        <article className="card stack">
-          <h2>이 수업에서 확인된 표현</h2>
-          {card.skill_events.map((event) => (
-            <p key={`${event.skill_id}-${event.at_sec}-${event.expression}`}>
-              <button className="time" onClick={() => seek(event.at_sec)}>{formatClock(event.at_sec)}</button>
-              {' '}{SKILL_LABEL[event.skill_id] ?? event.skill_id}: {event.expression}
-            </p>
-          ))}
-        </article>
+        <details className="fold">
+          <summary>이 수업에서 확인된 표현 {card.skill_events.length}개</summary>
+          <div className="stack">
+            {card.skill_events.map((event) => (
+              <p key={`${event.skill_id}-${event.at_sec}-${event.expression}`}>
+                <button className="time" onClick={() => seek(event.at_sec)}>{formatClock(event.at_sec)}</button>
+                {' '}<span className="muted small">{SKILL_LABEL[event.skill_id] ?? event.skill_id}</span> {event.expression}
+              </p>
+            ))}
+          </div>
+        </details>
       )}
 
-      <article className="card stack">
-        <h2>전사</h2>
-        {lines.map((line) => (
-          <div key={line.id} className="stack">
-            <p>
-              <button className="time" onClick={() => seek(line.start_sec)}>{formatClock(line.start_sec)}</button>
-              {' '}{line.text}
-              {!line.trusted && <span className="pill warn">음성인식 의심</span>}
-            </p>
-            {role === 'teacher' && (
-              <div className="row">
-                <button className={line.teacher_check === 'confirmed' ? 'primary' : 'ghost'} onClick={() => { void api(`/api/transcript-lines/${line.id}/check`, { method: 'POST', body: JSON.stringify({ teacherCheck: 'confirmed' }) }).then(load) }}>맞아요</button>
-                <button className={line.teacher_check === 'rejected' ? 'primary' : 'ghost'} onClick={() => { void api(`/api/transcript-lines/${line.id}/check`, { method: 'POST', body: JSON.stringify({ teacherCheck: 'rejected' }) }).then(load) }}>제가 한 말이 아니에요</button>
-              </div>
-            )}
+      {card.excluded_lines.length > 0 && (
+        <details className="fold">
+          <summary>평가에서 뺀 줄 {card.excluded_lines.length}개</summary>
+          <p className="muted small">음성인식이 틀렸을 수 있는 줄은 평가에 쓰지 않았습니다.</p>
+          <div className="stack">
+            {card.excluded_lines.map((line) => (
+              <p key={`${line.at_sec}-${line.reason}`}>
+                <button className="time" onClick={() => seek(line.at_sec)}>{formatClock(line.at_sec)}</button> {line.reason}
+              </p>
+            ))}
           </div>
-        ))}
-      </article>
+        </details>
+      )}
+
+      <details className="fold">
+        <summary>전사 전체 보기</summary>
+        <div>
+          {lines.map((line) => (
+            <div key={line.id} className="line">
+              <p>
+                <button className="time" onClick={() => seek(line.start_sec)}>{formatClock(line.start_sec)}</button>
+                {' '}{line.text}
+                {!line.trusted && <span className="pill warn" style={{ marginLeft: 6 }}>음성인식 의심</span>}
+              </p>
+              {role === 'teacher' && (
+                <div className="row">
+                  <button className={line.teacher_check === 'confirmed' ? 'primary' : 'ghost'} onClick={() => { void api(`/api/transcript-lines/${line.id}/check`, { method: 'POST', body: JSON.stringify({ teacherCheck: 'confirmed' }) }).then(load) }}>맞아요</button>
+                  <button className={line.teacher_check === 'rejected' ? 'primary' : 'ghost'} onClick={() => { void api(`/api/transcript-lines/${line.id}/check`, { method: 'POST', body: JSON.stringify({ teacherCheck: 'rejected' }) }).then(load) }}>제가 한 말이 아니에요</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
 
 function FlowBar({ card, onSeek }: { card: CardDocument; onSeek: (seconds: number) => void }) {
   const total = card.flow.segments.reduce((sum, segment) => sum + Math.max(1, segment.end_sec - segment.start_sec), 0)
+  const kinds = (['main', 'normal', 'control'] as const).filter((kind) => card.flow.segments.some((segment) => segment.kind === kind))
   return (
-    <>
+    <div className="stack">
       <p>{card.flow.lead}</p>
       <div className="flow">
         {card.flow.segments.map((segment) => (
@@ -218,16 +235,56 @@ function FlowBar({ card, onSeek }: { card: CardDocument; onSeek: (seconds: numbe
             key={`${segment.start_sec}-${segment.label}`}
             className={`kind-${segment.kind}`}
             style={{ flex: Math.max(1, segment.end_sec - segment.start_sec) / total }}
+            title={segment.label}
+            aria-label={`${formatClock(segment.start_sec)} ${segment.label}`}
             onClick={() => onSeek(segment.start_sec)}
-          >
-            <small>{formatClock(segment.start_sec)} · {KIND_LABEL[segment.kind]}</small>
-            {segment.label}
+          />
+        ))}
+      </div>
+      <div className="legend">
+        {kinds.map((kind) => <span key={kind}><i className={`kind-${kind}`} />{KIND_LABEL[kind]}</span>)}
+      </div>
+      <div className="seg-list">
+        {card.flow.segments.map((segment) => (
+          <button key={`${segment.start_sec}-row-${segment.label}`} onClick={() => onSeek(segment.start_sec)}>
+            <span className="ts">{formatClock(segment.start_sec)}–{formatClock(segment.end_sec)}</span>
+            <span>{segment.label}</span>
           </button>
         ))}
       </div>
-      <p>{card.flow.note}</p>
-    </>
+      <p className="banner">{card.flow.note}</p>
+    </div>
   )
+}
+
+function PhraseTable({ card, onSeek, bare }: { card: CardDocument; onSeek: (seconds: number) => void; bare?: boolean }) {
+  const phrases = card.english_phrases
+  if (!phrases) return null
+  const body = (
+    <div className="stack">
+      <p className="muted small">{phrases.note}</p>
+      {phrases.items.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="phrases">
+            <thead><tr><th>시각</th><th>구분</th><th>들린 표현</th><th>이렇게 말해 보세요</th><th>이유</th></tr></thead>
+            <tbody>
+              {phrases.items.map((item) => (
+                <tr key={`${item.at_sec}-${item.heard}`}>
+                  <td><button className="time" onClick={() => onSeek(item.at_sec)}>{formatClock(item.at_sec)}</button></td>
+                  <td><span className={`pill ${item.type === 'error' ? 'bad' : item.type === 'check' ? 'gray' : 'warn'}`}>{PHRASE_LABEL[item.type]}</span></td>
+                  <td>{item.heard}</td>
+                  <td className="sg">{item.suggested}</td>
+                  <td className="muted">{item.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+  if (bare) return body
+  return <section className="sec"><h2><i>＋</i>영어 표현 다듬기</h2>{body}</section>
 }
 
 function Finding({ finding, onSeek }: { finding: AreaReview['good'][number] | AreaReview['improve'][number]; onSeek: (seconds: number) => void }) {
@@ -236,20 +293,19 @@ function Finding({ finding, onSeek }: { finding: AreaReview['good'][number] | Ar
     <div className="finding">
       <strong>{finding.title}</strong>
       <p>{finding.text}</p>
-      <div className="stack">
-        <span className="muted">근거</span>
+      <div className="ev">
         {finding.evidence.map((item) => (
-          <p key={`${item.at_sec}-${item.quote}`}>
+          <div key={`${item.at_sec}-${item.quote}`}>
             <button className="time" onClick={() => onSeek(item.at_sec)}>{formatClock(item.at_sec)}</button>
-            {' '}{item.quote}
-          </p>
+            <q>{item.quote}</q>
+          </div>
         ))}
       </div>
       {example && (
-        <div className="stack">
-          <h3>이렇게 말해 보세요</h3>
-          <p>{example.say}</p>
-          <p className="muted">{example.why}</p>
+        <div className="say">
+          <span className="muted small">이렇게 말해 보세요</span>
+          <b>{example.say}</b>
+          <span className="small">{example.why}</span>
         </div>
       )}
     </div>
@@ -258,7 +314,7 @@ function Finding({ finding, onSeek }: { finding: AreaReview['good'][number] | Ar
 
 function Scene({ scene, onSeek }: { scene: { title: string; at_sec: number[]; text: string }; onSeek: (seconds: number) => void }) {
   return (
-    <div>
+    <div className="finding">
       <strong>{scene.title}</strong>
       <div className="row">
         {scene.at_sec.map((seconds) => (

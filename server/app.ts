@@ -13,6 +13,7 @@ import {
   verifyPassword,
   writeSessionCookie,
 } from './auth.js'
+import { registerAccountRoutes } from './account.js'
 import { LOCAL_BAND_NOTICE } from './card/band.js'
 import { compareCards } from './card/compare.js'
 import { skillStage } from './card/skills.js'
@@ -454,6 +455,7 @@ export function createApp() {
     res.json({ assignments: rows.rows.map((row) => ({ id: row.id, adminId: row.admin_id, teacherId: row.teacher_id })) })
   }))
 
+  registerAccountRoutes(app, { asyncRoute, loadAuth, requireActive, ctx, HttpError } as never)
   app.post('/api/retention', asyncRoute(async (req, res) => {
     const auth = requireActive(await loadAuth(req, res))
     if (auth.role !== 'representative') throw new HttpError(403, '대표만 보관 기간을 바꿉니다.', 'forbidden')
@@ -538,7 +540,7 @@ export function createApp() {
         throw new HttpError(403, '다른 선생님의 수업은 올릴 수 없습니다.', 'forbidden')
       }
     } else if (!body.teacherId) {
-      throw new HttpError(400, '소속 선생님을 고르세요.', 'teacher')
+      if (auth.role !== 'representative') throw new HttpError(400, '소속 선생님을 고르세요.', 'teacher')
     } else {
       teacherId = body.teacherId
     }

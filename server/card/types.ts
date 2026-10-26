@@ -128,6 +128,10 @@ export type ProcessorInput = {
   lessonDate: string
   className: string
   source: MediaSource
+  /** ffprobe 로 읽은 길이(초). 못 읽으면 null */
+  durationSec: number | null
+  /** 아이 이름 가리기에서 빼야 하는 선생님 표시 이름 */
+  teacherName: string | null
 }
 
 export type ProcessorOutput = {

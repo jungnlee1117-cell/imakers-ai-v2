@@ -293,13 +293,28 @@ def cmd_run(a):
     tr = work / "transcript.txt"
     subprocess.run([sys.executable, "-I", a.transcriber, a.audio, str(tr)], check=True)
     cmd_features(argparse.Namespace(transcript=str(tr), meta=a.meta, out=str(work), plan=a.plan))
-    import anthropic  # 이 환경에서는 API 키/외부 접속이 없어 이 부분은 시험하지 못했다
+    import anthropic
     client = anthropic.Anthropic()
     prompt = open(work / "prompt.md", encoding="utf-8").read()
+    usage = {"model": os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5"), "calls": 0,
+             "input_tokens": 0, "output_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+    def save_usage():
+        json.dump(usage, open(work / "usage.json", "w", encoding="utf-8"), indent=1)
     for attempt in range(3):
-        msg = client.messages.create(model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5"), max_tokens=8000,
-                                     messages=[{"role": "user", "content": prompt}])
-        txt = msg.content[0].text
+        # thinking 토큰도 max_tokens 안에서 쓰이므로 넉넉히 두고, 긴 응답의 시간 초과를 피하려 스트리밍으로 받는다.
+        with client.beta.messages.stream(model=usage["model"], max_tokens=64000,
+                                         betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+                                         messages=[{"role": "user", "content": prompt}]) as stream:
+            msg = stream.get_final_message()
+        usage["calls"] += 1
+        for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"):
+            usage[k] += getattr(msg.usage, k, None) or 0
+        save_usage()
+        if msg.stop_reason == "refusal":
+            sys.exit("분석 요청이 거절되었습니다.")
+        if msg.stop_reason == "max_tokens":
+            sys.exit(f"분석 결과가 max_tokens(64000)에서 잘렸습니다. 출력 {msg.usage.output_tokens}토큰.")
+        txt = "".join(b.text for b in msg.content if b.type == "text")  # 앞에 thinking 블록이 올 수 있다
         try:
             an = json.loads(txt[txt.index("{"): txt.rindex("}") + 1])
             json.dump(an, open(work / "analysis.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)

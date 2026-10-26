@@ -23,6 +23,7 @@ type Claimed = {
   file_path: string | null
   audio_path: string | null
   worker_token: string
+  teacher_name: string | null
 }
 
 async function claim(): Promise<Claimed | null> {
@@ -44,7 +45,8 @@ async function claim(): Promise<Claimed | null> {
     FROM next
     WHERE u.id = next.id
     RETURNING u.id, u.organization_id, u.teacher_id, u.lesson_date::text, u.class_name, u.sport,
-              u.language_mode, u.media_kind, u.file_path, u.audio_path, u.worker_token
+              u.language_mode, u.media_kind, u.file_path, u.audio_path, u.worker_token,
+              (SELECT display_name FROM users WHERE id = u.teacher_id) AS teacher_name
   `, [token])
   return result.rows[0] ?? null
 }
@@ -203,6 +205,8 @@ export async function processNext(): Promise<{ status: 'idle' } | { status: 'don
       lessonDate: upload.lesson_date,
       className: upload.class_name,
       source: upload.media_kind,
+      durationSec: duration,
+      teacherName: upload.teacher_name,
     })
     assertValidCard(output.card)
     const saved = await saveResult(upload, output.card, output.transcript_lines, processor.id, duration)

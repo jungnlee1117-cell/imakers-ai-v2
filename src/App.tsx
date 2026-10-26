@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, go, setUnauthorizedHandler, type Session } from './api.ts'
-import { billingLabel, roleLabel } from './format.ts'
+import { roleLabel } from './format.ts'
 import AccessPage from './pages/AccessPage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
 import CardPage from './pages/CardPage.tsx'
@@ -9,8 +9,7 @@ import HomePage from './pages/HomePage.tsx'
 import PlansPage from './pages/PlansPage.tsx'
 import PracticePage from './pages/PracticePage.tsx'
 import SkillsPage from './pages/SkillsPage.tsx'
-import TeachersPage from './pages/TeachersPage.tsx'
-import UploadPage from './pages/UploadPage.tsx'
+import SettingsPage from './pages/SettingsPage.tsx'
 
 function pathOf() {
   return (window.location.hash.replace(/^#/, '') || '/').split('?')[0]
@@ -42,24 +41,30 @@ export default function App() {
     }
   }, [])
 
-  if (!ready) return <main className="page">불러오는 중</main>
+  if (!ready) return <main className="shell page">불러오는 중</main>
   if (!session) return <AuthPage onDone={() => { go('/'); void refresh() }} />
 
   const role = session.role
   const activeMemberships = session.memberships.filter((item) => item.status === 'active')
+  const tabs: Array<{ to: string; label: string; match: (path: string) => boolean }> = []
+  if (role === 'teacher') {
+    tabs.push(
+      { to: '/', label: '내 수업', match: (path) => path === '/' || path === '/upload' || path.startsWith('/cards/') },
+      { to: '/practice', label: '오늘의 연습', match: (path) => path === '/practice' },
+      { to: '/skills', label: '쌓인 기술', match: (path) => path === '/skills' },
+      { to: '/changes', label: '변화 보기', match: (path) => path === '/changes' },
+      { to: '/plans', label: '계획안', match: (path) => path === '/plans' },
+    )
+  }
+  if (role === 'representative' || role === 'admin') {
+    tabs.push({ to: '/', label: '수업', match: (path) => path === '/' || path.startsWith('/cards/') })
+  }
 
   return (
-    <>
-      <header className="app-header">
-        <div>
-          <div className="brand">수업 코칭</div>
-          <div className="muted">
-            {session.organization?.name} · {roleLabel(role ?? '')}
-            {session.organization ? ` · ${billingLabel(session.organization.billingTier)}` : ''}
-            {session.organization?.billingTier === 'paid' ? ' · 결제 연결 없음' : ''}
-          </div>
-        </div>
-        <div className="row">
+    <div className="shell">
+      <header className="topbar">
+        <a className="logo" href="#/"><img src="/logo-mark.png" alt="" /> 수업 코칭</a>
+        <div className="who">
           {activeMemberships.length > 1 && (
             <select
               value={session.organization?.id}
@@ -75,46 +80,39 @@ export default function App() {
               ))}
             </select>
           )}
+          <span>{session.user.displayName} · {roleLabel(role ?? '')}</span>
+          <button className="ghost" onClick={() => go('/settings')}>설정</button>
           <button className="ghost" onClick={() => { void api('/api/auth/logout', { method: 'POST' }).then(() => refresh()) }}>로그아웃</button>
         </div>
       </header>
       {role === 'pending' ? (
         <main className="page">
-          <section className="panel">
-            <h1>승인 대기</h1>
-            <p>GTS 소속은 대표가 초대하거나 승인한 뒤에 들어올 수 있습니다.</p>
+          <section className="card stack">
+            <h1>승인을 기다리는 중입니다</h1>
+            <p className="muted">대표가 승인하면 바로 쓸 수 있습니다. 승인 뒤에 아래 버튼을 눌러 주세요.</p>
+            <div><button className="primary" onClick={() => { void refresh() }}>승인됐는지 확인</button></div>
           </section>
         </main>
       ) : (
         <>
-          <nav className="page">
-            {role === 'teacher' && (
-              <>
-                <a href="#/">홈</a>
-                <a href="#/upload">업로드</a>
-                <a href="#/plans">계획안</a>
-                <a href="#/practice">오늘의 연습</a>
-                <a href="#/skills">쌓인 기술</a>
-                <a href="#/changes">변화 보기</a>
-              </>
-            )}
-            {(role === 'representative' || role === 'admin') && <a href="#/teachers">선생님 목록</a>}
-            {role === 'representative' && <a href="#/access">열람 내역</a>}
-          </nav>
+          {tabs.length > 1 && (
+            <nav className="tabs">
+              {tabs.map((tab) => <a key={tab.label} href={`#${tab.to}`} className={tab.match(route) ? 'on' : ''}>{tab.label}</a>)}
+            </nav>
+          )}
           <main className="page">
             {route.startsWith('/cards/') && <CardPage id={route.slice('/cards/'.length)} role={role ?? ''} onChanged={refresh} />}
-            {route === '/' && role === 'teacher' && <HomePage />}
-            {route === '/upload' && role === 'teacher' && <UploadPage session={session} onUploaded={refresh} />}
+            {(route === '/' || route === '/upload') && role === 'teacher' && <HomePage session={session} onSession={refresh} />}
             {route === '/plans' && role === 'teacher' && <PlansPage />}
             {route === '/practice' && role === 'teacher' && <PracticePage />}
             {route === '/skills' && role === 'teacher' && <SkillsPage />}
             {route === '/changes' && role === 'teacher' && <ChangesPage />}
-            {route === '/teachers' && (role === 'representative' || role === 'admin') && <TeachersPage role={role} session={session} />}
+            {route === '/' && (role === 'representative' || role === 'admin') && <HomePage session={session} onSession={refresh} />}
+            {route === '/settings' && <SettingsPage session={session} />}
             {route === '/access' && role === 'representative' && <AccessPage />}
-            {route === '/' && role !== 'teacher' && <TeachersPage role={role ?? 'admin'} session={session} />}
           </main>
         </>
       )}
-    </>
+    </div>
   )
 }
